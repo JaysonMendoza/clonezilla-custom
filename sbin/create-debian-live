@@ -4,13 +4,13 @@
 # Description: This script will create a Debian live CD iso which is used as a template for clonezilla image with restoration function.
 
 #
-set -e
+set -e ## Abort script at first error, when a command exits with non-zero status (except in until or while loops, if-tests, list constructs)
 
 #
-DRBL_SCRIPT_PATH="${DRBL_SCRIPT_PATH:-/usr/share/drbl}"
-. $DRBL_SCRIPT_PATH/sbin/drbl-conf-functions
-. /etc/drbl/drbl-ocs.conf
-. $DRBL_SCRIPT_PATH/sbin/ocs-functions
+DRBL_SCRIPT_PATH="${DRBL_SCRIPT_PATH:-/usr/share/drbl}" ## Adds /usr/share/drbl to the environment variable DRBL_SCRIPT_PATH just in case it was already set by another calling script.
+. $DRBL_SCRIPT_PATH/sbin/drbl-conf-functions #run specified source file/script in current shell. At script termination any variables or functions defined will remain available to this shell.
+. /etc/drbl/drbl-ocs.conf #run specified source file/script in current shell. At script termination any variables or functions defined will remain available to this shell.
+. $DRBL_SCRIPT_PATH/sbin/ocs-functions #run specified source file/script in current shell. At script termination any variables or functions defined will remain available to this shell.
 
 # debian_mirror_url_def, debian_mirror_security_url_def, DRBL_REPOSITORY_URL_def and DRBL_GPG_KEY_URL are loaded from drbl-ocs.conf
 
