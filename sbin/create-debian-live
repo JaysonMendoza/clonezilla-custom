@@ -2,12 +2,14 @@
 # Author: Steven Shiau <steven _at_ nchc org tw>
 # License: GPL
 # Description: This script will create a Debian live CD iso which is used as a template for clonezilla image with restoration function.
-
+export DEBUG_LOG_FILE="/home/drazev/Dev/log-create-debian-live.txt" 
+echo "DEBUG(5): Running test version: create-debian-live" > $DEBUG_LOG_FILE
 #
 set -e ## Abort script at first error, when a command exits with non-zero status (except in until or while loops, if-tests, list constructs)
 
 #
 DRBL_SCRIPT_PATH="${DRBL_SCRIPT_PATH:-/usr/share/drbl}" ## Adds /usr/share/drbl to the environment variable DRBL_SCRIPT_PATH just in case it was already set by another calling script.
+echo "DEBUG(12): DRBL_SCRIPT_PATH=$DRBL_SCRIPT_PATH" >> $DEBUG_LOG_FILE
 . $DRBL_SCRIPT_PATH/sbin/drbl-conf-functions #run specified source file/script in current shell. At script termination any variables or functions defined will remain available to this shell.
 . /etc/drbl/drbl-ocs.conf #run specified source file/script in current shell. At script termination any variables or functions defined will remain available to this shell.
 . $DRBL_SCRIPT_PATH/sbin/ocs-functions #run specified source file/script in current shell. At script termination any variables or functions defined will remain available to this shell.
@@ -20,6 +22,7 @@ debian_type="minbase"
 #debian_type="standard"
 DEBIAN_DIST_DEF="sid"
 pkgs="$PKG_FROM_DBN_WHICH_OCS_LIVE_NEED drbl $PKG_FROM_DRBL_FOR_CLONEZILLA_LIVE"
+echo "DEBUG(25): pkg= $pkg" >> $DEBUG_LOG_FILE
 categories_default="main contrib"
 cpu_flavor_default="amd64"
 workdir="debian-live"
@@ -30,6 +33,7 @@ ramfs_size_def="7516192768"  # Unit: bytes. Use for mount -t tmpfs if use_ramfs=
 # The files in dir $ocs_live_script_dir/ will be copied to the dir /live-hook-dir in dir chroot. The file "ocs-live-hook" is in $ocs_live_script_dir
 # We put some files in dir ocs_minimal_hook/ to do some jobs, like clean unnecessary files, set locales...
 ocs_live_script_dir="$DRBL_SCRIPT_PATH/setup/files/ocs/live-hook"
+echo "DEBUG(36) ocs_live_script_dir= $ocs_live_script_dir" >> $DEBUG_LOG_FILE
 # The script inside $ocs_live_script_dir/ will be run when chroot. There are many files in $ocs_live_script_dir/, we will just run one here.
 run_hook_script="ocs-live-hook"
 # This hook is for binary_local-hooks, not for chroot hook
@@ -39,10 +43,11 @@ gen_source_tarball="no"
 kernel_pkg=""
 
 #
+echo "DEBUG(46): RUN external function check_if_root from drbl-functions in /usr/share/drbl/sbin/" >> $DEBUG_LOG_FILE
 check_if_root
 #
 prog="$(basename $0)"
-
+echo "DEBUG(50): prog=$prog" >> $DEBUG_LOG_FILE
 # functions
 USAGE() {
     echo "Usage:"
@@ -70,11 +75,13 @@ USAGE() {
 #
 build_it() {
   mkdir ${workdir}
+  echo "DEBUG(77): build_it function started in workdir=$workdir" >> $DEBUG_LOG_FILE
+  ##JAYSO: Ram mounted to file system for use as build directory
   if [ "$use_ramfs" = "yes" ]; then
     ramfs_cmd="mount -t tmpfs -o "size=${ramfs_size}" tmpfs ${workdir}"
-    eval $ramfs_cmd
-    rc_ram="$?"
-    if [ "$rc_ram" -ne 0 ]; then
+    eval $ramfs_cmd ##Complete mount
+    rc_ram="$?" ##get result of mount
+    if [ "$rc_ram" -ne 0 ]; then ##check for failure and handle
       [ "$BOOTUP" = "color" ] && $SETCOLOR_FAILURE
       echo "Failed to mount RAM as working dir by this command:"
       echo "$ramfs_cmd"
@@ -84,22 +91,32 @@ build_it() {
     fi
   fi
   cd ${workdir}
-  
+
   $pref lb config --distribution $debian_dist --parent-distribution $debian_dist
+  echo "DEBUG(95): Command: $pref lb config --distribution $debian_dist --parent-distribution $debian_dist" >> $DEBUG_LOG_FILE
   $pref lb config --archive-areas "$categories"
+  echo "DEBUG(97): Command: $pref lb config --archive-areas \"$categories\"" >> $DEBUG_LOG_FILE
   # 2020/Mar/09 No more required this:
   # It's important to make the url for --parent-mirror-binary is different from that of --parent-mirror-chroot so that in /usr/lib/live/build/chroot_archives the "lb config --cache-packages false" and "lb config --apt-indices false" can work and those /var/cache/apt/{pkgcache.bin,srcpkgcache.bin} and those /var/lib/apt/lists/{*_Packages,*Release*,*_Sources} won't be cached.
   $pref lb config --parent-mirror-bootstrap $mirror_url --parent-mirror-binary $mirror_url --parent-mirror-chroot $mirror_url --parent-mirror-chroot-security $mirror_security_url --parent-mirror-binary-security $mirror_security_url --parent-mirror-debian-installer $mirror_url
+    echo "DEBUG(101): Command: $pref lb config --parent-mirror-bootstrap $mirror_url --parent-mirror-binary $mirror_url --parent-mirror-chroot $mirror_url --parent-mirror-chroot-security $mirror_security_url --parent-mirror-binary-security $mirror_security_url --parent-mirror-debian-installer $mirror_url" >> $DEBUG_LOG_FILE
   # Since we use Debian Sid normally, disable updates.
   $pref lb config --updates false
+  echo "DEBUG(104): Command: $pref lb config --updates false" >> $DEBUG_LOG_FILE
   $pref lb config --mirror-debian-installer $mirror_url
-  $pref lb config --mirror-binary $mirror_url --mirror-binary-security $mirror_security_url 
+  echo "DEBUG(106): Command: $pref lb config --mirror-debian-installer $mirror_url" >> $DEBUG_LOG_FILE
+  $pref lb config --mirror-binary $mirror_url --mirror-binary-security $mirror_security_url
+  echo "DEBUG(108): Command: $pref lb config --mirror-binary $mirror_url --mirror-binary-security $mirror_security_url" >> $DEBUG_LOG_FILE 
   $pref lb config --mirror-bootstrap $mirror_url
+  echo "DEBUG(110): Command: $pref lb config --mirror-bootstrap $mirror_url" >> $DEBUG_LOG_FILE
   $pref lb config --mirror-chroot $mirror_url --mirror-chroot-security $mirror_security_url
+  echo "DEBUG(112): Command: $pref lb config --mirror-chroot $mirror_url --mirror-chroot-security $mirror_security_url" >> $DEBUG_LOG_FILE
   if [ "$use_backports" = "yes" ]; then
     $pref lb config --backports true
+    echo "DEBUG(115): Command: $pref lb config --backports true" >> $DEBUG_LOG_FILE
   else
     $pref lb config --backports false
+    echo "DEBUG(12): Command: $pref lb config --backports false" >> $DEBUG_LOG_FILE
   fi
   
   # From live-build 3.0~a58-1, no --bootstrap-flavour option.
@@ -109,70 +126,95 @@ build_it() {
   # Due to this issue: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=830696
   # We have to add gnupg in the base environment
   export DEBOOTSTRAP_OPTIONS="$DEBOOTSTRAP_OPTIONS --include=gnupg"
+  echo "DEBUG(128): exported DEBOOTSTRAP_OPTIONS=$DEBOOTSTRAP_OPTIONS"
   $pref lb config --debootstrap-options="${DEBOOTSTRAP_OPTIONS} --variant=$debian_type"
+  echo "DEBUG(130): Command: $pref lb config --debootstrap-options=\"${DEBOOTSTRAP_OPTIONS} --variant=$debian_type\"" >> $DEBUG_LOG_FILE
   # Since we might assign the package version, e.g. live-boot=3.0.1-1.drbl4.
   # If we do not adding "--no-upgrade", then 
   # in /usr/lib/live/build/chroot_live-packages it will run
   # "apt-get install live-boot" then it will be upgraded.
   $pref lb config --apt apt --apt-options "--yes --no-upgrade --allow-downgrades" --apt-recommends false
+  echo "DEBUG(136): Command: $pref lb config --apt apt --apt-options \"--yes --no-upgrade --allow-downgrades\" --apt-recommends false" >> $DEBUG_LOG_FILE
   # From live-build 3.0~a59-1, no --volatile option.
   #$pref lb config --volatile false
   # Disable the firmware packages automatically inclusion
   $pref lb config --firmware-binary false --firmware-chroot false
+  echo "DEBUG(141): Command: $pref lb config --firmware-binary false --firmware-chroot false" >> $DEBUG_LOG_FILE
   $pref lb config --security false
+  echo "DEBUG(143): Command: $pref lb config --security false" >> $DEBUG_LOG_FILE
   $pref lb config --initramfs live-boot
+  echo "DEBUG(12): Command: $pref lb config --initramfs live-boot" >> $DEBUG_LOG_FILE
   # Refer to /usr/share/live/build/functions/defaults.sh for the original boot append parameters.
   # Don't be confused. It won't be appended. Therefore we have to put all required ones.
   $pref lb config --bootappend-live "boot=live union=overlay config username=user"
+  echo "DEBUG(149): Command: $pref lb config --bootappend-live \"boot=live union=overlay config username=user\"" >> $DEBUG_LOG_FILE
   # Enable cache-indices, by doing this, "apt-get upgrade" won't be run in lb chroot_sources after hook since we might assign older package version when building.
   # This is important especially when there is newer live-boot in Sid. E.g. on 2014/Apr/1 live-boot 4.0 alpha is aviailable, but we still want to keep using 3.0.1-1.drbl4. If --cache-indices is set true, live-boot is upgraded, and 4.0 is installed on the system after filesystem.squashfs is created. Then the initrd.img is re-created again, with live-boot 4.x in initrd.img. It will be inconsistent with what we want.
   $pref lb config --cache-indices true
+  echo "DEBUG(153): Command: $pref lb config --cache-indices true" >> $DEBUG_LOG_FILE
   $pref lb config --cache-packages false
+  echo "DEBUG(155): Command: $pref lb config --cache-packages false" >> $DEBUG_LOG_FILE
   $pref lb config --apt-indices false
+  echo "DEBUG(157): Command: $pref lb config --apt-indices false" >> $DEBUG_LOG_FILE
   $pref lb config --apt-source-archives true
+  echo "DEBUG(159): Command: $pref lb config --apt-source-archives true" >> $DEBUG_LOG_FILE
   #$pref lb config --tasksel none
   
   #
+  echo "DEBUG(164): Detecting cpu flavor for build as $cpu_flavor" >> $DEBUG_LOG_FILE
   case "$cpu_flavor" in
     686*|586*|486*) 
            # Default bootloaders in live-build is syslinux,grub-efi (for i386/amd64)
            # No need to run "$pref lb config --bootloaders syslinux,grub-efi"
            # //NOTE// This option "--binary-images" is for template iso only, not for Clonezilla live iso.
            $pref lb config --binary-images iso-hybrid
+           echo "DEBUG(171): Command: $pref lb config --binary-images iso-hybrid" >> $DEBUG_LOG_FILE
 	   # Add those x86 only packages
 	   pkgs="$pkgs $PKG_FROM_DBN_WHICH_OCS_LIVE_NEED_X86_ONLY"
+     echo"DEBUG(174): Adding $PKG_FROM_DBN_WHICH_OCS_LIVE_NEED_X86_ONLY for x86 to pkgs, pkgs=$pkgs" >> $DEBUG_LOG_FILE
 	   ;;
     amd64) 
            # Default bootloaders in live-build is syslinux,grub-efi (for i386/amd64)
            # No need to run "$pref lb config --bootloaders syslinux,grub-efi"
            # //NOTE// This option "--binary-images" is for template iso only, not for Clonezilla live iso.
            $pref lb config --binary-images iso-hybrid
+           echo "DEBUG(181): Command: $pref lb config --binary-images iso-hybrid" >> $DEBUG_LOG_FILE
 	   # Add those x86 only packages
 	   pkgs="$pkgs $PKG_FROM_DBN_WHICH_OCS_LIVE_NEED_X86_64_ONLY"
+     echo"DEBUG(184): Adding $PKG_FROM_DBN_WHICH_OCS_LIVE_NEED_X86_ONLY for x86 to pkgs, pkgs=$pkgs" >> $DEBUG_LOG_FILE
 	   ;;
     arm64) 
            $pref lb config --bootloaders grub-efi
+           echo "DEBUG(188): Command: $pref lb config --bootloaders grub-efi" >> $DEBUG_LOG_FILE
            $pref lb config --binary-images iso
+           echo "DEBUG(190): Command: $pref lb config --binary-images iso" >> $DEBUG_LOG_FILE
 	   # Add those x86 only packages
 	   pkgs="$pkgs $PKG_FROM_DBN_WHICH_OCS_LIVE_NEED_ARM64_ONLY"
+     echo"DEBUG(184): Adding $PKG_FROM_DBN_WHICH_OCS_LIVE_NEED_ARM64_ONLY for x86 to pkgs, pkgs=$pkgs" >> $DEBUG_LOG_FILE
 	   ;;
     armhf) 
            $pref lb config --bootloaders grub-efi
+           echo "DEBUG(197): Command: $pref lb config --bootloaders grub-efi" >> $DEBUG_LOG_FILE
            $pref lb config --binary-images iso
+           echo "DEBUG(199): Command: $pref lb config --binary-images iso" >> $DEBUG_LOG_FILE
 	   # Add those armhf only packages
 	   pkgs="$pkgs $PKG_FROM_DBN_WHICH_OCS_LIVE_NEED_ARMHF_ONLY"
+     echo"DEBUG(184): Adding $PKG_FROM_DBN_WHICH_OCS_LIVE_NEED_ARMHF_ONLY for armhf to pkgs, pkgs=$pkgs" >> $DEBUG_LOG_FILE
 	   ;;
   esac
   
   # This decide_MKSQUASHFS_OPTIONS function will output "export MKSQUASHFS_OPTIONS"
+  echo "DEBUG(207): RUN external function decide_MKSQUASHFS_OPTIONS from ocs-functions in ~/Dev/clonezilla-custom/sbin/ (local directory)"
   decide_MKSQUASHFS_OPTIONS
 
   # Options for kernel package version name and flavor, take "linux-image-5.4.0-4-amd64" as an example
   # "linux-image-5.4.0-4" is assigned by "--linux-packages"
   # "amd64" is assigned by "--linux-flavours"
   $pref lb config --linux-packages "${kernel_pkg}"
+   echo "DEBUG(214): Command: $pref lb config --linux-packages \"${kernel_pkg}\"" >> $DEBUG_LOG_FILE
   
   # For OS arch, we can build amd64 Debian on i386 Debian or vice versus.
+  echo "DEBUG(217): Comment-> For OS arch, we can build amd64 Debian on i386 Debian or vice versus. (Preceeds setting var llnx_flavor used in next command."
   case "$cpu_flavor" in
     686*|586*|486*) os_arch="i386"
 	            lnx_flavor="$cpu_flavor"
@@ -189,37 +231,55 @@ build_it() {
 	            ;;
   esac
   $pref lb config --architectures $os_arch
+  echo "DEBUG(234): Command: $pref lb config --architectures $os_arch" >> $DEBUG_LOG_FILE
 
   # We force to use the specific Linux kernel, e.g., linux-image-5.4.0-4-amd64, linux-image-5.4.0-4-armmp-lpae
   $pref lb config --linux-flavours $lnx_flavor
-  
+  echo "DEBUG(238): Command: $pref lb config --linux-flavours $lnx_flavor" >> $DEBUG_LOG_FILE
   $pref lb config --initsystem systemd
+  echo "DEBUG(240): Command: $pref lb config --initsystem systemd" >> $DEBUG_LOG_FILE
   
   # No memtest from debian, we will use the one from drbl since it's newer.
+  echo "DEBUG(243): Comment -> No memtest from debian, we will use the one from drbl since it's newer."
   $pref lb config --memtest none
-  
+  echo "DEBUG(245): Command: $pref lb config --memtest none" >> $DEBUG_LOG_FILE
   $pref lb config --debian-installer false
+  echo "DEBUG(247): Command: $pref lb config --debian-installer false" >> $DEBUG_LOG_FILE
   $pref lb config --win32-loader false
+  echo "DEBUG(249): Command: $pref lb config --win32-loader false" >> $DEBUG_LOG_FILE
   
   # Disable zsync, it might fail due to download files after /etc/resolv.conf is deconfigured.
+  echo "DEBUG(252): Comment -> Disable zsync, it might fail due to download files after /etc/resolv.conf is deconfigured." >> $DEBUG_LOG_FILE
   $pref lb config --zsync false
+  echo "DEBUG(254): Command: $pref lb config --zsync false" >> $DEBUG_LOG_FILE
   
   # Create a source tarball or not.
+  echo "DEBUG(257): Comment -> Create a source tarball or not. Env var gen_source_tarball=$gen_source_tarball" >> $DEBUG_LOG_FILE
   if [ "$gen_source_tarball" = "yes" ]; then
     $pref lb config --source true
+    echo "DEBUG(260): Command: $pref lb config --source true" >> $DEBUG_LOG_FILE
     $pref lb config --source-images tar
+    echo "DEBUG(262): Command: $pref lb config --source-images tar" >> $DEBUG_LOG_FILE
     # Since most of the debian packages are compressed (xz or gzip), we just use none, not the default one gzip.
+    echo "DEBUG(264): Comment -> Since most of the debian packages are compressed (xz or gzip), we just use none, not the default one gzip." >> $DEBUG_LOG_FILE
     $pref lb config --compression none
+    echo "DEBUG(266): Command: $pref lb config --compression none" >> $DEBUG_LOG_FILE
   else
     $pref lb config --source false
+    echo "DEBUG(269): Command: $pref lb config --source false" >> $DEBUG_LOG_FILE
   fi
   
   # Put files to be included in the chroot hook
+  echo "DEBUG(273): Comment -> Put files to be included in the chroot hook" >> $DEBUG_LOG_FILE
   mkdir -p config/includes.chroot/live-hook-dir
+  echo "DEBUG(275): Command: mkdir -p config/includes.chroot/live-hook-dir" >> $DEBUG_LOG_FILE
+  echo "DEBUG(276): script loop: for i in $ocs_live_script_dir; do" >> $DEBUG_LOG_FILE
   for i in $ocs_live_script_dir; do
     cp -pr $i/* config/includes.chroot/live-hook-dir/
+    echo "DEBUG(279): Command: cp -pr $i/* config/includes.chroot/live-hook-dir/" >> $DEBUG_LOG_FILE
   done
   cp -a /etc/drbl/{drbl.conf,drbl-ocs.conf} config/includes.chroot/live-hook-dir
+  echo "DEBUG(282): Command: cp -a /etc/drbl/{drbl.conf,drbl-ocs.conf} config/includes.chroot/live-hook-dir" >> $DEBUG_LOG_FILE
   
   # Put the mirror url and settings, which we might need.
   cat <<-HOOK_APPEND_END >> config/includes.chroot/live-hook-dir/ocs-live-hook.conf
@@ -228,17 +288,22 @@ debian_dist="$debian_dist"
 mirror_url="$mirror_url"
 drbl_ocs_live_ver="clonezilla-live-${version_no}"
 HOOK_APPEND_END
-  
+echo "DEBUG(291): SCRIPT: CREATED config file config/includes.chroot/live-hook-dir/ocs-live-hook.conf \n::START CONTENTS::" >> $DEBUG_LOG_FILE
+cat config/includes.chroot/live-hook-dir/ocs-live-hook.conf >> $DEBUG_LOG_FILE
+echo "\n ::END CONTENTS:: \n DEBUG(239): SCRIPT: ::END config/includes.chroot/live-hook-dir/ocs-live-hook.conf" >> $DEBUG_LOG_FILE
   # Put packages list in config/package-lists/. //NOTE// Do not use file name like clonezilla-packages.list. Make it like clonezilla-packages.list.binary (for lb_binary) or clonezilla-packages.list.chroot (for lb_chroot). Otherwise lb_binary_package-lists will generate deb repository (/pool). 
   # Ref: http://lists.debian.org/debian-live/2012/07/msg00119.html
   echo "$pkgs" > config/package-lists/clonezilla-packages.list.chroot
-  
+  echo "DEBUG(297): Command: \"$pkgs\" > config/package-lists/clonezilla-packages.list.chroot" >> $DEBUG_LOG_FILE
+  echo "DEBUG(298): FILE CONTENTS: config/package-lists/clonezilla-packages.list.chroot ::START::" >> $DEBUG_LOG_FILE
+  cat config/package-lists/clonezilla-packages.list.chroot >> $DEBUG_LOG_FILE
+  echo "DEBUG(300): FILE CONTENTS: config/package-lists/clonezilla-packages.list.chroot ::END::" >> $DEBUG_LOG_FILE
   # Put hook file to be run in chroot
   cp $ocs_live_script_dir/${run_hook_script} config/hooks/live/${run_hook_script}.chroot
-  
+  echo "DEBUG(303): Command: cp $ocs_live_script_dir/${run_hook_script} config/hooks/live/${run_hook_script}.chroot" >> $DEBUG_LOG_FILE
   # Put hook file to be run in the binary local hook
   cp $ocs_live_script_dir/$run_binary_hook_script config/hooks/live/${run_binary_hook_script}.binary
-  
+  echo "DEBUG(306): Command: cp $ocs_live_script_dir/$run_binary_hook_script config/hooks/live/${run_binary_hook_script}.binary" >> $DEBUG_LOG_FILE
   # prepare drbl source list
   # //NOTE// Use drbl-repository.list instead of drbl-repository.list.chroot because 
   # with ".chroot" it means only for chroot and it will be removed from the squashfs.
@@ -246,15 +311,22 @@ HOOK_APPEND_END
 deb $DRBL_REPOSITORY_URL drbl $LIVE_REPOSITORY_SECTIONS_drbl
 deb-src $DRBL_REPOSITORY_URL drbl $LIVE_REPOSITORY_SECTIONS_drbl
 AddDRBLRepository
-  
+  echo "DEBUG(314): FILE CONTENTS: config/archives/drbl-repository.list ::START::" >> $DEBUG_LOG_FILE
+  cat config/archives/drbl-repository.list >> $DEBUG_LOG_FILE
+  echo "DEBUG(316): FILE CONTENTS: config/archives/drbl-repository.list ::END::"
   # prepare drbl key
+
   LC_ALL=C wget -O config/archives/drbl-gpg.key $DRBL_GPG_KEY_URL
-  
+  echo "DEBUG(320): Command [WARNING WGET], also uses drbl-ocs.conf for DRBL_GPG_KEY_URL: LC_ALL=C wget -O config/archives/drbl-gpg.key $DRBL_GPG_KEY_URL" >> $DEBUG_LOG_FILE
+  echo "DEBUG(321): VARIABLE LC_ALL=$LC_ALL" >> $DEBUG_LOG_FILE
   # Disable apt languages and translations when creating DRBL live. This could reduce apt repository issue.
+  echo "DEBUG(323): RUN external function \"disable_apt_lang_translation chroot/etc/apt/apt.conf.d/99lang\" from drbl-functions in /usr/share/drbl/sbin/" >> $DEBUG_LOG_FILE
   disable_apt_lang_translation chroot/etc/apt/apt.conf.d/99lang
   
   # Build it.
+  echo "DEBUG(327): Command BEGIN: $pref lb build" >> $DEBUG_LOG_FILE
   $pref lb build
+  echo "DEBUG(327): Command END & FUNCTION build_it END: $pref lb build" >> $DEBUG_LOG_FILE
 } # End of build_it
 
 # Parse command-line options
@@ -401,12 +473,14 @@ if ! type lb &>/dev/null; then
   [ "$BOOTUP" = "color" ] && $SETCOLOR_NORMAL
   exit 1
 fi
-
+echo "DEBUG(476): RUN external function \"ask_and_load_lang_set en_US.UTF-8\" from drbl-functions in /usr/share/drbl/sbin/" >> $DEBUG_LOG_FILE
 ask_and_load_lang_set en_US.UTF-8
-create_live_required_debian_based_prompt
-
+echo "DEBUG(478): END RUN external function \"ask_and_load_lang_set en_US.UTF-8\"" >> $DEBUG_LOG_FILE
+echo "DEBUG(479): RUN external function \"create_live_required_debian_based_prompt\" from drbl-functions in /usr/share/drbl/sbin/" >> $DEBUG_LOG_FILE
+##create_live_required_debian_based_prompt ##This line is throwing an error - source /usr/share/drbl/sbin/drbl-functions
+echo "DEBUG(478): END RUN external function \"create_live_required_debian_based_prompt\"" >> $DEBUG_LOG_FILE
 rm -rf ${workdir}/.stage/
-
+echo "DEBUG(483): Command: rm -rf ${workdir}/.stage/" >> $DEBUG_LOG_FILE
 # Apply default settings if not assigned
 [ -z "$debian_dist" ] && debian_dist="$DEBIAN_DIST_DEF"
 [ -z "$categories" ] && categories="$categories_default"
@@ -525,20 +599,30 @@ lb_ver="$(LC_ALL=C lb --version)"  # e.g. 3.0.5-1
 if [ "$lb_ver" \> 3 ] && [ "$lb_ver" \< 4 ]; then
   # Live build version 3 
   mv -f ${workdir}/binary*.iso $target_iso
+  echo "DEBUG(602): Command: mv -f ${workdir}/binary*.iso $target_iso" >> $DEBUG_LOG_FILE
   if [ "$gen_source_tarball" = "yes" ]; then
     mv -f ${workdir}/source.debian.tar $target_src_tarball
+    echo "DEBUG(605): Command: mv -f ${workdir}/source.debian.tar $target_src_tarball" >> $DEBUG_LOG_FILE
     mv -f ${workdir}/source.debian.contents $target_src_tarball_list
+    echo "DEBUG(607): Command: mv -f ${workdir}/source.debian.contents $target_src_tarball_list" >> $DEBUG_LOG_FILE
     mv -f ${workdir}/source.debian-live.tar $target_src_debian_live_tarball
+    echo "DEBUG(609): Command: mv -f ${workdir}/source.debian-live.tar $target_src_debian_live_tarball" >> $DEBUG_LOG_FILE
     mv -f ${workdir}/source.debian-live.contents $target_src_debian_live_tarball_list
+    echo "DEBUG(611): Command: mv -f ${workdir}/source.debian-live.contents $target_src_debian_live_tarball_list" >> $DEBUG_LOG_FILE
   fi
 else
   # Live build version 4
   mv -f ${workdir}/live-image*.iso $target_iso
+  echo "DEBUG(616): Command: mv -f ${workdir}/live-image*.iso $target_iso" >> $DEBUG_LOG_FILE
   if [ "$gen_source_tarball" = "yes" ]; then
     mv -f ${workdir}/live-image-source.debian.contents $target_src_tarball_list
+    echo "DEBUG(619): Command: mv -f ${workdir}/live-image-source.debian.contents $target_src_tarball_list" >> $DEBUG_LOG_FILE
     mv -f ${workdir}/live-image-source.debian.tar $target_src_tarball
+    echo "DEBUG(621): Command: mv -f ${workdir}/live-image-source.debian.tar $target_src_tarball" >> $DEBUG_LOG_FILE
     mv -f ${workdir}/live-image-source.live.contents $target_src_debian_live_tarball_list
+    echo "DEBUG(623): Command: mv -f ${workdir}/live-image-source.live.contents $target_src_debian_live_tarball_list" >> $DEBUG_LOG_FILE
     mv -f ${workdir}/live-image-source.live.tar $target_src_debian_live_tarball
+    echo "DEBUG(625): Command: mv -f ${workdir}/live-image-source.live.tar $target_src_debian_live_tarball" >> $DEBUG_LOG_FILE
   fi
 fi
 
@@ -546,5 +630,6 @@ fi
 if [ "$use_ramfs" = "yes" ]; then
   if mountpoint ${workdir}; then
     umount ${workdir}
+    echo "DEBUG(633): Command: umount ${workdir}" >> $DEBUG_LOG_FILE
   fi
 fi
