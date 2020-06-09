@@ -35,33 +35,39 @@ USAGE() {
 do_mount_local_dev() {
    local target_part part_fs # target_part is like hda1, sda1...
 
-   prepare_mnt_point_ocsroot
-   if [ "$ocs_prompt_mode" = "tui" ]; then
+   prepare_mnt_point_ocsroot ##JAYSON: from ocs-functions, Handles mounting the ocsroot directory and deals with cases like if its alredy mounted, symbolic link, etc. If it is not successfully mounted will EXIT 1(False)
+   if [ "$ocs_prompt_mode" = "tui" ]; then ##JAYSON: default is unset, meaning cmd mode.
      $DIA --title "$msg_nchc_free_software_labs" --clear \
-          --msgbox "$msg_prompt_for_insert_USB_dev_if_necessary" 0 0
-   else
+          --msgbox "$msg_prompt_for_insert_USB_dev_if_necessary" 0 0 ##"If you want to use USB device as a Clonezilla image repository, please\n * Insert USB device into this machine *now*\n * Wait for about 5 secs \n * Press Enter key \nso that the OS can detect the USB device and later we can mount it as $ocsroot."
+   else ##Default
      [ "$BOOTUP" = "color" ] && $SETCOLOR_WARNING
      echo -e "$msg_prompt_for_insert_USB_dev_if_necessary"
      [ "$BOOTUP" = "color" ] && $SETCOLOR_NORMAL
      echo -n "$msg_press_enter_to_continue..."
      read
      # If it's in speech synthesis (speakup.synth=soft) mode, do not use ocs-scan-disk
+
+     ##JAYSON: This block will display a prompt to the screen that loops and shows available disks. It helps the user know what disks will be available
+     ## and allows the user to insert removable media and wait for it to load before it shows on this screen.
+     ## The user will cancel with ctrl+c when they are done, terminating the screen and resuming normal execution.
      if [ -z "$(grep -Ew speakup.synth=soft /proc/cmdline)" ]; then
-       if type screen 2>&1 > /dev/null; then
-         screen watch -c -n 3 ocs-scan-disk
+       if type screen 2>&1 > /dev/null; then ##Default
+         screen watch -c -n 3 ocs-scan-disk ##JAYSON: Creates virtual terminal and calls the watch application wtih ANSI color (-c) and set a 3 second interval between updates (-n 3). Run the ocs-scan-disk script on intervals.
        fi
      fi
    fi
    echo "Mounting local dev as $ocsroot..."
    ANS_TMP=`mktemp /tmp/ocs_ans.XXXXXX`
    trap "[ -f "$ANS_TMP" ] && rm -f $ANS_TMP" HUP INT QUIT TERM EXIT
+   ##JAYSON: The following function will use partclone to build a list of selectable target devices from the previous partition table.
+   ## It will then have the user select one of them in a bterm in 7-MENU, and that answer is written to the $ANS_TMP file as the target part.
    get_input_dev_name -d $ANS_TMP partition menu yes "$msg_device_to_mount_as_ocsroot_do_not_mount_target_dev\n$msg_linux_parts_MS_mapping"
    # we have to remove " (comes with checklist in dialog) so that for loop
    # will work (Specially for FC3/4...)
    target_part="$(cat $ANS_TMP | tr -d \")"
    [ -f "$ANS_TMP" ] && rm -f $ANS_TMP
    [ -z "$target_part" ] && exit 1
-   check_input_partition -a $target_part
+   check_input_partition -a $target_part ##JAYSON: This also validates that the targeted partition is a block device that has a file system.
    # check if $target_part is ntfs or others
    part_fs="$(LANG=C ocs-get-part-info /dev/$target_part filesystem)"
    echo "/dev/$target_part filesystem: $part_fs"
@@ -123,7 +129,7 @@ do_mount_local_dev() {
 	   echo mount -t hfsplus -o force,$ocsroot_def_mnt_opt,nodiratime /dev/$target_part $ocsroot
 	   LC_ALL=C mount -t hfsplus -o force,$ocsroot_def_mnt_opt,nodiratime /dev/$target_part $ocsroot
 	   ;;
-     *)    echo mount -t auto -o $ocsroot_def_mnt_opt,nodiratime /dev/$target_part $ocsroot
+     *)    echo mount -t auto -o $ocsroot_def_mnt_opt,nodiratime /dev/$target_part $ocsroot ##JAYSON: Default for USB devices if target (VFAT)
            LC_ALL=C mount -t auto -o $ocsroot_def_mnt_opt,nodiratime /dev/$target_part $ocsroot 
 	   ;;
    esac
@@ -989,10 +995,10 @@ do_mount_subdir_bind() {
   ocs-live-bind-mount
   [ "$chk_ocsroot_mountpont" = "yes" ] && check_if_ocsroot_a_mountpoint
 }
-#
+##JAYSON: This will test to make sure the path set as ocsroot is writable, and determine the type of filesystem.
 find_ocsroot_dev_description(){
   local filesystem writable rw_test_file
-  filesystem="$(get_dir_filesystem $ocsroot)"
+  filesystem="$(get_dir_filesystem $ocsroot)" ##JAYSON: Function in subshell is from ocs-functions. Returns the filesystem type of ocsroot
   rw_test_file="$(mktemp $ocsroot/rw_test.XXXXXX)"
   rc=$?
   if [ "$rc" -eq 0 ]; then
@@ -1093,21 +1099,23 @@ bind_ocsroot_dia_des() {
   bind_ocsroot_msg_1="use_subdir"
   bind_ocsroot_msg_2="$(rep_whspc_w_udrsc "$msg_remount_subdir: $rep_dev")"
 }
-#
+##JAYSON: This will by default 
 get_ocsroot_resource() {
   local default_menu
-  find_ocsroot_dev_description
-  if is_drbl_clonezilla_live_env; then
+  find_ocsroot_dev_description ## Prints message identifying the filesystem type, and tests if it is writable.
+  
+  ##JAYSON: Sets env variables for various ocsroot types.
+  if is_drbl_clonezilla_live_env; then ##JAYSON: ocs-functions, Default 0(true), Tests clonezilla env by checking for startup script directory and a username should be specified in kernel params. If all are found ,this evaluates true. It should be true.
     webdav_ocsroot_dia_des
     s3_ocsroot_dia_des
     swift_ocsroot_dia_des
   fi
-  if mountpoint $ocsroot 2>&1 >/dev/null; then
+  if mountpoint $ocsroot 2>&1 >/dev/null; then ##JAYSON: This will use exit status of mountpoin command to determine if ocsroot is a mount point. It will divert its normal outpots to null so that it doesn't display.
     bind_ocsroot_dia_des
   fi
   local TMP
   #
-  if [ -z "$ocsroot_src" ]; then
+  if [ -z "$ocsroot_src" ]; then 
     # If $ocsroot is a mount point, then default in "skip", otherwise default in "local_dev"
     if mountpoint $ocsroot >/dev/null 2>&1; then 
       default_menu="skip"
@@ -1195,8 +1203,8 @@ check_DIA_set_ESC $DIA
 ##############
 
 #
-if [ -z "$ocsroot_src" ]; then
-  get_ocsroot_resource
+if [ -z "$ocsroot_src" ]; then ##JAYSON: Default is true since ocsroot_src is unset. It can be specified by kernel commands.
+  get_ocsroot_resource ##Ensures that ocsroot has been set and is a valid directory, we are in clonezilla environment, and that ocsroot_src is set to the type of mount point that ocsroot represents.
 fi
 
 #

@@ -74,6 +74,11 @@ if [ ! -e "$cmdl_file" ]; then
   exit 1
 fi
 
+##JAYSON: Parses kernel command line looking for a particular parameter, which is passed to this script as the first param.
+##It will then parse all the attributes into a list format for only unique entries.
+##This should be a list of scripts that will be executed at a time designated by the param name. For example ocs_prerun will occur befor
+##the main script is executed, and ocs_postrun will happen afterwards.
+##All options in the grub2 options do not make use of this. However this allows for further customization, in particular for network boot scenario's.
 ocs_param_list="$(grep -Ewo "${ocs_param}[[:digit:]]*" $cmdl_file | uniq | sort -V)"
 ocs_param_list="$(echo $ocs_param_list)"  # in one line
 

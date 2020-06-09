@@ -48,6 +48,7 @@ ocs_interactive() {
   TMP="$(mktemp /tmp/ocsmenu.XXXXXX)"
   trap "[ -f "$TMP" ] && rm -f $TMP" HUP INT QUIT TERM EXIT
   
+  ##JAYSON: Displays 5-MENU screen and captures selection into temp file which is read into var $ocs_live_type for the mode selected.
   if [ -z "$ocs_live_type" ]; then
     $DIA --backtitle "$msg_nchc_free_software_labs" \
     --title "$msg_nchc_clonezilla" \
@@ -74,7 +75,7 @@ ocs_interactive() {
       exit 1
     fi
   fi
-  case "$ocs_live_type" in
+  case "$ocs_live_type" in ##JAYSON: Script is making sure the selected option is a valid type.
     device-image|device-device|remote-source|remote-dest|lite-server|lite-client) true;;
     *) 
        echo "\"$ocs_live_type\" is an unknown or unsupported type! You have to specify a correct ocs_live_type (device-image or device-device)!"
@@ -82,9 +83,11 @@ ocs_interactive() {
        exit 1
        ;;
   esac
-  #
+  
+  ##JAYSON: Call next script in program execution chain depending on mode. For our purpose this will always be ocs-live.
+  ##We can disable options in this area.
   case "$ocs_live_type" in
-    device-image)  ocs-live -l $lang $postaction_opt $dev_img_opt;;
+    device-image)  ocs-live -l $lang $postaction_opt $dev_img_opt;; ##DEFAULT: ocs-live -l en_US
     device-device) ocs-onthefly -l $lang $postaction_opt -x -lo;;
     remote-source) ocs-onthefly -l $lang $postaction_opt -x -ro;;
     remote-dest)   ocs-onthefly -l $lang $postaction_opt -s ask_user -t ask_user;;
@@ -93,7 +96,7 @@ ocs_interactive() {
   esac
 } # end of ocs_interactive
 
-#
+##JAYSON: Parse command line options. Default: -n for no wait before exit. 
 while [ $# -gt 0 ]; do
   case "$1" in
     -l|--language)
@@ -134,22 +137,22 @@ done
 ask_and_load_lang_set $specified_lang
 
 # check DIA
-check_DIA_set_ESC $DIA
+check_DIA_set_ESC $DIA ##JAYSON: Check dialogue box type set, or if unset throw error. drbl-functions (2290). Set in drbl.conf
 
 ##############
 #### main ####
 ##############
 
 # //NOTE// For ocs-sr, the short option for postaction is: -p, while for ocs-onthelfy, it's  -pa. Therefore we use "--postaction"
-[ -n "$postaction" ] && postaction_opt="--postaction $postaction"
-[ "$do_prep_ocsroot" = "no" ] && dev_img_opt="-s"
+[ -n "$postaction" ] && postaction_opt="--postaction $postaction" ##JAYSON: Pushes forwrad post action if specified. It is not specified in default execution.
+[ "$do_prep_ocsroot" = "no" ] && dev_img_opt="-s" ##JAYSON: Default is yes
 
 # Try to get some kernel param. If the kernel param is assigned by user. It has higher priority than the one in /etc/ocs/ocs-live.conf
 # 1. ocs_sr_opt
 # 2. ocs_onthefly_opt
 # If the above params are not found. Run the normal interactive mode of ocs.
 
-if [ "$show_lite_menu" = "yes" ]; then
+if [ "$show_lite_menu" = "yes" ]; then ##JAYSON:DEfault yes
   lite_related_menu_dia_des
 fi
 
@@ -158,7 +161,7 @@ for ik in $ker_param_chklist; do
   parse_cmdline_option "$ik"	
 done
 
-#
+##JAYSON: Calls menu unless an action was already specified by command line options specified when script called.
 if [ -n "$ocs_sr_opt" ]; then
   ocs-sr $ocs_sr_opt
   rc=$?
@@ -166,11 +169,11 @@ elif [ -n "$ocs_onthefly_opt" ]; then
   ocs-onthefly $ocs_onthefly_opt
   rc=$?
 else
-  ocs_interactive
+  ocs_interactive ##DEFAULT OPTION
   rc=$?
 fi
 
-if [ "$wait_before_exit" = "yes" ]; then
+if [ "$wait_before_exit" = "yes" ]; then ##DEFAULT OPTION IS NO due to -n flag set when called by ocs-live-general
   echo -n "$msg_press_enter_to_continue..."
   read
 fi

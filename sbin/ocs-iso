@@ -478,6 +478,7 @@ fi
 
 # Check if EFI boot could be supported.
 # We only check bootx64.efi or bootaa64.efi since bootx86.efi is optional.
+##JAYSON DEBUG: This is a point of failure at times.
 if [ -e "$DEBIAN_ISO_TMP/EFI/boot/bootx64.efi" ]; then
    cpu_arch_type="x86"
 elif [ -e "$DEBIAN_ISO_TMP/EFI/boot/bootaa64.efi"  ]; then

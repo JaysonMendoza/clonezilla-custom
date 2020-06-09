@@ -44,15 +44,20 @@ while [ $# -gt 0 ]; do
 done
 
 # Get the live media mount point.
-get_live_media_mnt_point
+get_live_media_mnt_point ##Sets LIVE_MEDIA env variable by funding squashfs location on the medium, or if its using PXE it will parse the path to find it. Defined in ocs-functions.
 
 # prepare the clonezilla live environment.
-ocs-live-env-prepare
-
-# "-n" was added since we will run show-general-ocs-live-prompt after command clonezilla
+##JAYSON: Function from ocs-functions 10379. This makes sure the environment is properly setup and will prompt for language if it was not set in ocs-live.conf.
+##This was already set in preperation phase.
+#Calls 4-MENU with option to start clonezilla live or enter shell. Selecting shell will exit script with code 99..
+ocs-live-env-prepare 
+# "-n" was added since we will run show-general-ocs-live-prompt after command clonezilla. If shell selected, returns error code 99
 LC_ALL=$ocs_lang clonezilla -n
 rc=$?
 
+##JAYSON This is the post program operation and will display information and instruction depending on the previous action taken based on environment variables. 
+##For Device to Image option this simply informs you how to run again and waits for user input.
+##If network mode was used it will print additional information prior.
 # Show prompt when in interactive mode
 if [ -e /var/lib/clonezilla/ocs-vars ]; then
   . /var/lib/clonezilla/ocs-vars
@@ -68,7 +73,7 @@ if [ -e /var/lib/clonezilla/ocs-vars ]; then
     # 2. show prompt about re-run and poweroff
     case "$postaction" in
       reboot|poweroff) true;;
-      *) show-general-ocs-live-prompt;;
+      *) show-general-ocs-live-prompt;; ##In ocs-functions. This will show "If you want to use Clonezilla again" followed by instructions, then will pause for user input.
     esac
   fi
 fi

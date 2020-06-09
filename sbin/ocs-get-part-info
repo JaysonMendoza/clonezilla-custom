@@ -543,9 +543,11 @@ while [ $# -gt 0 ]; do
 done
 # part is like /dev/hda1
 # request is one of start, end, size, type, filesystem or flags.
-part="$1"
+part="$1" ##The device targeted for information
 shift
-request="$*"
+request="$*" ##Default filesystem, this could be a list of requets.
+##JAYSON: Example call is ocs-get-part-info /dev/$target_part filesystem
+
 
 [ -z "$part" -o -z "$request" ] && exit 1
 

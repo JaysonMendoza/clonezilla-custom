@@ -92,7 +92,7 @@ ask_and_load_lang_set $ocs_lang
 [ -n "$ocs_lang" ] && lang_opt="-l $ocs_lang"
 [ -n "$postaction" ] && postaction_opt="-p $postaction"
 # 1. prep-ocsroot
-if [ "$do_prep_ocsroot" = "yes" ]; then
+if [ "$do_prep_ocsroot" = "yes" ]; then ##Default is yes
   start-prep-ocsroot
 fi
 

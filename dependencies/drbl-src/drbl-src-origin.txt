@@ -1,0 +1,33 @@
+This file is a record of the files contained in this directory and their original sources.
+SOURCE INFORMATION
+------------------
+--------------------
+Summary:        DRBL (Diskless Remote Boot in Linux) package.
+Name:           drbl
+Version:	2.31.11
+Release:	drbl1
+License:	GPL
+Group:		Development/DRBL
+URL:		http://drbl.org
+BuildArch:	noarch
+Requires:	perl, bash
+Obsoletes:	drbl-gdm, drbl-script, drbl-setup, rh-netinstall, mdk-netinstall, woody-netinstall, memtest86, knoppix-terminalserver
+
+description
+DRBL (Diskless Remote Boot in Linux).
+Description:
+DRBL provides a diskless or systemless environment for client machines. It works on Debian, Ubuntu, Mandriva, Red Hat, Fedora, CentOS and OpenSuSE. DRBL uses distributed hardware resources and makes it possible for clients to fully access local hardware. It also includes Clonezilla, a partition and disk cloning utility similar to Symantec Ghost(TM) or True Image(TM).
+For more details, check 
+1. http://drbl.org or http://drbl.sourceforge.net (English)
+2. http://drbl.nchc.org.tw (Traditional Chinese - Taiwan) 
+
+
+---------------------------------------------------
+FILE  ||  SOURCE
+----------------------------------------------------
+drbl-conf-functions ||  drbl/scripts/sbin/
+drbl-functions      ||  drbl/scripts/sbin/
+drbl-kbdchooser     ||  drbl/scripts/sbin/
+drbl-langchooser    ||  drbl/scripts/bin/
+drbl-uriparse       ||  drbl/bin/
+drbl.conf           ||  drbl/conf/

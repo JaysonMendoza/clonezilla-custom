@@ -85,9 +85,12 @@ if ! mountpoint $ocsroot 2>&1 >/dev/null; then
 fi
 
 # Prepare the temporary mount point.
+##Jayson: From drbl-ocs.conf
+## A mounting point for temporary (middle) use.
+##pre_ocsroot_path="/tmp/ocsroot_bind_root"
 mkdir -p $pre_ocsroot_path
 
-# If it's bind device, umount it first
+# If it's a bound device, umount it first, this is FALSE at default since this directory does not exist and is not bound.
 if is_ocs_bind_mount $ocsroot; then
   # Bind mounted mode.
   # Saved the bind mounted source
