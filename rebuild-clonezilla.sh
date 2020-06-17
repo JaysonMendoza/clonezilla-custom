@@ -23,12 +23,14 @@ declare outFile="$(realpath ~/$fileName/$(date +%Y-%m-%d)clonezilla-custom-${RAN
 declare src="$(realpath ~/Dev/clonezilla-custom)" #The location of the directory where source files will be obtained.
 declare tmpDir="" #The location of the temporary directory where zip files will be stored and modified.
 declare -i filesCopied=0
+declare -i filesSkipped=0
 declare logFile=$(mktemp ~/errorlog-rebuild-clonezilla.XXXXXX.txt) #This is the logfile that will be left in the target directory on failure.
 declare printLog="" ##Flag that will turn on log file if it is set to any value other than null.
 declare updateIfNewer="" #Flag that if set to any value will check if the source file is newer than the destination file. This means the source file will always be copied.
 declare forceAll="" ##Flag that will indicate all files should be copied even if they don't exist in the existing image.
 declare cpFlags="" ##This contains all the option flags that will be passed to the copy function. It is empty by default and can be affected by the alwaysReplace flag.
 declare overwriteList="/home/drazev/overwritelist.txt" ##TEST CODE, creates a list to map out all files being transfered.
+declare pauseFlag="" #This flag when set will pause the script after everything is copied but before the rebuild begins. This allows for manuel modifications to the filesystem by the user.
 
 ######################################################################################
 ##                                  Function Definitions                            ##
@@ -50,7 +52,7 @@ USAGE() {
     echo "      -s SOURCE_DIR  | --src SOURCE_DIR, Sets the source directory for where the scripts are contained"
     echo "      -l | --log, Generate a log file even if operation successful."
     echo "      -u | --update, Only replace a file found in the image with a file in the script if it is newer and the same name. Same as cp with update flag."
-    echo "      -f | --force, (DISABLED COMMAND) Copy all files from source into the associated image directory even if they don't exist in the image now."
+    echo "      -p | --pause, Pauses the program after all files are copied but before the package is rebuilt. This allows user to make manuel changes before the image is repackaged."
     echo "--------------------------------------------------------------------------------------------"
 }
 
@@ -124,6 +126,85 @@ REPLACE_FILES() {
     done
 }
 
+DIR_COPY() {
+    local findOpt="-type f" #Option flags for find
+    local directCopy="" #Flag to trigger direct file copies from source directory to destination without searching for a match in the folder or subfolders.
+    local srcDir=""
+    local destDir=""
+    local category=""
+    local filesCopiedCountStart=$filesCopied
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            -m) #Max Depth set
+                shift
+                [ $1 -gt 0 ] && findOpt="--maxdepth $1 $findOpt"
+                shift
+                ;;
+            -d) #direct copy
+                directCopy="true"
+                shift
+                ;;
+            -*) #error case, unknown flag. 
+                FAILURE_EXIT -l "DIRC_COPY failure. Unknown flag $1."
+                ;;
+            *) break
+            ;;
+        esac
+    done
+    
+    [ $# -ne 3 ] && FAILURE_EXIT -l "Syntax error, invalid arguments for function DIR_COPY(). $# given when 3 expected. USAGE: DIR_COPY \"CATEGORY\" \"SOURCE\" \"DEST\"."
+    category=$1
+    srcDir=$2
+    [ ! -d $3 ] && FALURE_EXIT -l "Syntax error, invalid arguments for function DIR_COPY(). Target directory must be a directory. Given: $3"
+    destDir=$3
+    
+    echo "Starting to copy files for $category..."
+    for file in $srcDir; do
+        local matchResults=""
+        local numMatch=""
+        local fileName=$(basename $file)
+        [ -d $file ] && continue #skip directories
+
+        echo "---Processing $fileName from \"$srcDir\"..."| tee -a $logFile
+        if [ -z $directCopy ]; then
+            matchResults=$(find $destDir $findOpt -iname $fileName)
+            numMatch=$(echo $matchResults | wc -w)
+        else
+            matchResults=$destDir
+            numMatch="1"
+        fi
+
+        if [ $numMatch -lt 1 ]; then
+            echo "******WARNING: No matches found for $fileName, Skipping"| tee -a $logFile
+            (( filesSkipped++ ))
+            continue
+        elif [ $numMatch -gt 1 ]; then
+            echo "******WARNING: $numMatch copies of $fileName found in source."| tee -a $logFile
+        fi
+        
+        for swap in $matchResults; do
+            local tarDir=$swap
+            [ -d $tarDir ] && tarDir="$tarDir/$fileName"
+            echo "------Copying $fileName to $tarDir" | tee -a $logFile
+            cp $cpFlags $file $tarDir >> $logFile
+            if [ -f $tarDir ]; then
+                echo "------Success!"| tee -a $logFile
+                hasCopiedFiles="yes"
+                (( filesCopied++ ))
+            else
+                FALURE_EXIT -l "Failured to copy \"$fileName\" to $swap"
+            fi
+        done
+    done
+    copyCount=$(( $filesCopied-$filesCopiedCountStart ))
+
+    if [ $copyCount -gt 0 ]; then
+        echo "Finished copying $copyCount files for $category"| tee -a $logFile
+    else
+        echo "No files found to copy for $category."| tee -a $logFile
+    fi
+}
+
 #This function will take a string representation a file's current path in the source folder
 #and map that to a destination folder which will be echoed back.
 MAP_SRC_TO_DEST() {
@@ -178,6 +259,10 @@ while [ $# -gt 0 ]; do
             forceAll="true"
             shift
             ;;
+        -p|--pause)
+            pauseFlag="true"
+            shift
+            ;;
         -*) FALURE_EXIT -u "Invalid option specified." ;;
         *) break;;
     esac
@@ -211,15 +296,31 @@ echo "Unzipping contents into temporary directory."| tee -a $logFile
 unzip -q $targetFile -d $tmpDir/zip | tee -a $logFile
 [ ! $? ] && FALURE_EXIT -l "Failed to unzip to temporary directory."
 echo "Unzip successful!"| tee -a $logFile
+
 echo ""
+
 echo "Extracting squashfs."| tee -a $logFile
 unsquashfs -d $tmpDir/root-squashfs $tmpDir/zip/live/filesystem.squashfs
 [ ! $? ] && FALURE_EXIT -l "Failed to extract squashfs from system."
 echo "Squashfs successfully extracted"| tee -a $logFile
+
 echo ""
 
-echo "Changing Files"| tee -a $logFile
-REPLACE_FILES "$src/sbin/* $src/bin/* $src/setup/files/ocs/ocs-live.d/* $src/setup/files/ocs/* $src/scripts/sbin/* $src/conf/*"
+DIR_COPY "MAIN SCRIPTS" "$src/sbin/* $src/bin/* $src/scripts/sbin/* $src/conf/*" "$tmpDir/root-squashfs/"
+#REPLACE_FILES "$src/sbin/* $src/bin/* $src/setup/files/ocs/ocs-live.d/* $src/setup/files/ocs/* $src/scripts/sbin/* $src/conf/*"
+
+DIR_COPY "STARTUP FILES" "$src/setup/files/ocs/ocs-live.d/* $src/setup/files/ocs/*" "$tmpDir/root-squashfs/etc/ocs/"
+
+DIR_COPY -d "GRUB2 FILES" "$src/grub2/*" "$tmpDir/zip/boot/grub/"
+
+DIR_COPY -d "LANGUAGE FILES" "$src/lang/bash/*" "$tmpDir/root-squashfs/usr/share/drbl/lang/bash/"
+
+if [ -n $pauseFlag ]; then
+    echo "All files have been copied to the new image."
+    echo "Rebuild paused, make modifications at $tmpDir"
+    echo "Press any button to continue..."
+    read
+fi
 
 echo ""
 echo "Rebuilding squashfs" | tee -a $logFile

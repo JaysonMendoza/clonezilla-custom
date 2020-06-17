@@ -10322,13 +10322,13 @@ check_if_tty_the_specified_one_and_continue() {
     fi
   fi
   
-  ##JAYSON: This calls 4-MENU to stat clonezilla or enter shell.
+  ##JAYSON: This calls 4-MENU to stat clonewar or enter shell.
   TMP="$(mktemp /tmp/ocslivemode.XXXXXX)"
   trap "[ -f "$TMP" ] && rm -f $TMP" HUP INT QUIT TERM EXIT
   $DIA --backtitle "$msg_nchc_free_software_labs" --title  \
   "$msg_start_clonezilla" --menu "$msg_start_clonezilla_or_enter_shell\n$msg_choose_mode:" \
   0 0 0 $DIA_ESC \
-  "Start_Clonezilla" "$msg_start_clonezilla" \
+  "Start_Clonewar" "$msg_start_clonezilla" \
   "Enter_shell"      "$msg_enter_cml" \
   2> $TMP
   ocslivemode="$(cat $TMP)"
@@ -10336,8 +10336,8 @@ check_if_tty_the_specified_one_and_continue() {
   [ -f "$TMP" ] && rm -f $TMP
   
   case "$ocslivemode" in
-    "Start_Clonezilla") 
-      echo "Start Clonezilla now..." ;;
+    "Start_Clonewar") 
+      echo "Start Clonewar now..." ;;
     "Enter_shell"|"") exit 99 ;;
   esac
 } # end of check_if_tty_the_specified_one_and_continue

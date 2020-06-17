@@ -1115,7 +1115,7 @@ load_lang_set() {
         lang="zh_TW.UTF-8"
         ;;
      *)
-        if [ -n "$lang_answer" -a -e "$DRBL_SCRIPT_PATH/lang/bash/$lang_answer" ] ; then ## -a True if file exists (deprecated), -e True if file exists, regardless of type.
+        if [ -n "$lang_answer" -a -e "$DRBL_SCRIPT_PATH/lang/bash/$lang_answer" ] ; then
           lang="$lang_answer"
         else
           lang="en_US.UTF-8"
@@ -1124,7 +1124,7 @@ load_lang_set() {
   
   # get the l10n message
   if [ -n "$lang" -a -e "$DRBL_SCRIPT_PATH/lang/bash/$lang" ] ; then
-    . $DRBL_SCRIPT_PATH/lang/bash/$lang ##/usr/share/drbl/lang/bash/
+    . $DRBL_SCRIPT_PATH/lang/bash/$lang
   else
     echo "Not such language option!!!"
     exit 1
@@ -2763,13 +2763,6 @@ parse_cmdline_option() {
     exit 1
   fi
 
-
-  ##JAYSON NOTES: This code will search the kernal command line arguments for pre-determined patters from a list passed to this function.
-  ##Each param in the list represents an environment variable which needs to be set. To do this the function creates a temporary file used
-  ##as a swap space as each variable in the list. On each iternation a variable is extracted from the kernal command line params and written to a file.
-  ##Once the variable is found it will be in the temporary file, and we will parse the passed arguments using perl to protect special charactes.
-  ##The output written to the file should be in the form required to set an environment variable. We then run the temporary file as a script to set that
-  ##environment variable. At the conclusion of this function the temporary file will be removed.
   for ik in $param_; do
     # The parameter maybe like: xxx=xyz, xxx="xyz", xxx="-k -x", or "xxx=-k -x" (see below)
     ###
@@ -2833,8 +2826,8 @@ parse_cmdline_option() {
     # By running ". /tmp/cmdtmp.XXXXXX", the ocs_prerun will be:
     # mount -t cifs -o user=steven,domain=ABC.COM,password=12 //serv/images /home/partimag
     # It's because $ABC34 is nothing here. Therefore we have to protect "$" in the temp file.
-    perl -pi -e 's|\$|\\\$|g' $parse_tmp ##JAYSON NOTES: This line will split the command line arguments and their assigned values and stores them in a file. It will retain special characters, which is important for passwords.
-    . $parse_tmp ##Jayson NOTES: All the arguments and values parsed in the previous step represent environment variables. Run this script file in the current shell to set them.
+    perl -pi -e 's|\$|\\\$|g' $parse_tmp
+    . $parse_tmp
   done
   [ -f "$parse_tmp" ] && rm -f $parse_tmp
 } # parse_cmdline_option
