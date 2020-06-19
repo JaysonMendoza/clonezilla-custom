@@ -887,6 +887,7 @@ create_clonezilla_live_recovery_iso_zip() {
     # Run ocs-iso/ocs-live-dev
     # Ex:ocs-iso -g en -t -k NONE -e "-b -c restoredisk sarge-r5 hda" sarge-r5
     #    ocs-live-dev -c -g en -t -k NONE -e "-b -c restoredisk sarge-r5 hda" sarge-r5
+    ## This block will inform the user the exact command that could be used next time to repeat this process, then calls that exact command.
     (cd $ocsroot
     case "$rec_file_type" in
        iso)
@@ -1035,7 +1036,7 @@ fi
 if [ "$ocs_sr_type_assign" = "ask_user" -o \
      "$ocs_sr_mode" = "interactive" ]; then
   ASK_OCS_SR_TYPE=1
-  case "$ocs_x_mode" in
+  case "$ocs_x_mode" in ##JAYSON: This is generally null in normal mode
     "save_only")
       save_only_dia_des
       ;;
@@ -1065,7 +1066,7 @@ if [ "$ocs_sr_type_assign" = "ask_user" -o \
   fi
 
   #
-  [ -z "$ocs_user_mode" ] && ask_if_beginner_or_expert_mode
+  [ -z "$ocs_user_mode" ] && ask_if_beginner_or_expert_mode ##JAYSON: Default unset. This will show 9-MENU for expert or Beginner mode. drbl-functions
 
   # Clean the previous saved env so if ocs-onthefly is cancelled, won't read the previous env and reboot/poweroff.
   rm -f /var/lib/clonezilla/ocs-vars
@@ -1074,6 +1075,7 @@ if [ "$ocs_sr_type_assign" = "ask_user" -o \
   echo "Choose the mode for ocs-sr"
   TMP="$(mktemp /tmp/menu-ocs.XXXXXX)"
   trap "[ -f "$TMP" ] && rm -f $TMP" HUP INT QUIT TERM EXIT
+  ##JAYSON: This is 10-MENU. It will prompt user for some options to save image, save image as recovery ISO or ZIP (or both), or if an image exists at that point, they can check it, or change it's encryption state.
   while [ "$ASK_OCS_SR_TYPE" -ne 0 ]; do
     $DIA --backtitle "$msg_nchc_free_software_labs" \
     --title "$msg_nchc_clonezilla: $msg_choose_mode" \
@@ -1148,13 +1150,14 @@ turn_off_swap_and_LVM2
 # Boot parameter ocs_overwrite_postaction has higher priority than the action assigned by option "-p".
 overwrite_postaction_if_assigned $ocs_sr_type
 
-#
+##JAYSON: Here we process the option they selected in 10-MENU
 case "$ocs_sr_type" in
   "savedisk")
     task_preprocessing "$ocs_sr_type"
     MULTIPATH_INFODIR="$(mktemp -d /tmp/multipath_info.XXXXXX)"
 
     if [ "$ocs_sr_img_name" = "ask_user" ]; then
+      ##JAYSON: The next function is in ocs-functions and will display 11-MENU to choose a target filename
       get_target_dir_name_when_saving  # get $target_dir
     elif [ "$ocs_sr_img_name" = "autoname" ]; then 
       # Ref: https://sourceforge.net/projects/clonezilla/forums/forum/799287/topic/4815557
@@ -1201,6 +1204,7 @@ case "$ocs_sr_type" in
 
     if [ "$ocs_sr_dev" = "ask_user" ]; then
       # To get $target_hd
+      ##JAYSON: This function from ocs-functions will display 12-MENU to determine the disk or partition to image.
       get_target_hd_name_from_local_machine "$msg_local_source_disk \n$msg_linux_disk_naming $msg_press_space_to_mark_selection"
       target_hd="$(select_VG "$target_hd")"
     elif [ "$ocs_sr_dev" = "all" ]; then
@@ -1215,10 +1219,14 @@ case "$ocs_sr_type" in
     check_if_input_device_exist $ANS_TMP $target_hd 
     target_hd="$(cat $ANS_TMP | tr -d \")"
     [ -f "$ANS_TMP" ] && rm -f $ANS_TMP
-    get_extra_param_when_type_is_ask_user_and_interactive_mode
+    ##JAYSON This function will link to drbl-functions and walk the user through a series of menus from 13-MENU to 16-MENU
+    #IF expert mode, loads interactive menu with options, otherwise sets default params.
+    #Following this the flags to be passed will be set based on those optoins.It will later display a command line input that
+    #Is equiv to all the chosen options if the user would like to do this again.
+    get_extra_param_when_type_is_ask_user_and_interactive_mode 
     wrap_up_opt_after_interactive_selection  # Since extra param inputed again, wrap up again
 
-    task_processing_after_parameters_checked
+    task_processing_after_parameters_checked ##JAYSON ocs-functions, 
 
     save_ocs_sr_related_vars
     run_ocs_sr_again_prompt "$target_dir" "$target_hd"
@@ -1276,6 +1284,7 @@ case "$ocs_sr_type" in
         dia_sel_opt="checklist"
       fi
       # To get $target_hd
+      ##JAYSON: This function from ocs-functions will display 12-MENU to determine the disk or partition to image.
       get_target_hd_name_from_local_machine "$msg_choose_the_disks_to_restore \n$msg_linux_disk_naming $msg_press_space_to_mark_selection" $dia_sel_opt
     elif [ "$ocs_sr_dev" = "all" ]; then
       target_hd="$(get_disk_list_from_img $ocsroot/$target_dir)"
@@ -1385,7 +1394,7 @@ case "$ocs_sr_type" in
     task_processing_after_parameters_checked
 
     save_ocs_sr_related_vars
-    run_ocs_sr_again_prompt "$target_dir" "$target_parts"
+    run_ocs_sr_again_prompt "$target_dir" "$target_parts" ##JAYSON: This will display the command line equ to all set optoins for running agian
 
     # //NOTE// If encrypt_ocs_img="yes", after this step, ocsroot and target_dir will be changed
     # The original ones will be kept as ocsroot_orig and target_dir_orig.
@@ -1472,15 +1481,18 @@ case "$ocs_sr_type" in
     if [ -n "$source_part" ]; then
 	OCS_OPTS="$OCS_OPTS -f $source_part"
     fi
-
+    ##The next command will call a function in ocs-functions to
+    ##save all ocs related variables to a new file /var/lib/clonezilla/ocs-vars
+    ##Vars: ocs_cmd, target_dir, target_hd, postaction, ocs_sr_mode
     save_ocs_sr_related_vars
     run_ocs_sr_again_prompt "$target_dir" "$target_parts"
 
     # //NOTE// If encrypt_ocs_img="yes", after this step, ocsroot and target_dir will be changed
     # The original ones will be kept as ocsroot_orig and target_dir_orig.
+    ##JAYSON: This function resides in ocs-functions and calls a function in drbl-functions. the mount option is used for encryption.
     prepare_ecryptfs_mount_point_if_necessary
 
-    task_processing_after_parameters_checked
+    task_processing_after_parameters_checked ##JAYSON: Calls a function in ocs-function that will use drbl-function script to run all scripts located in the designated pre-run folder, if specified.
 
     if [ -d "$ocsroot/$target_dir" -a "$chk_img_restoreable_mod_restore" = "yes" ]; then
       check_image_if_restorable "$ocsroot"

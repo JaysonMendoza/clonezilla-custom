@@ -4626,7 +4626,7 @@ get_input_dev_name() {
     else
        height="$MAX_DIALOG_HEIGHT"
     fi
-    #
+    ##JAYSON: This is 12-MENU and prompts the user to choose the disk or partition to be imaged.
     while [ "$ASK_INPUT" -eq 1 ]; do
       $DIA --backtitle "$msg_nchc_free_software_labs" --title "$msg_nchc_clonezilla | $msg_mode: $ocs_mode_prompt" \
         --$selection "$msg_choose_dev_to_what" 0 0 $height $HARDDEVS \
@@ -7799,6 +7799,7 @@ get_target_dir_name_when_saving() {
   local img_name_prompt="$1" # The image name is optional, only for prompt in the dialog.
   local ANS_TMP
   local ASK_IMG_NAME=1
+  ##JAYSON: This is 11-MENU
   ANS_TMP=`mktemp /tmp/ocs_ans.XXXXXX`
   trap "[ -f "$ANS_TMP" ] && rm -f $ANS_TMP" HUP INT QUIT TERM EXIT
   while [ "$ASK_IMG_NAME" -ne 0 ]; do
@@ -7834,7 +7835,7 @@ get_target_hd_name_from_local_machine() {
   trap "[ -f "$ANS_TMP" ] && rm -f $ANS_TMP" HUP INT QUIT TERM EXIT
   [ -z "$input_selection_opt" ] && input_selection_opt="default"
   while [ "$ASK_DEV_NAME" -ne 0 ]; do
-    get_input_dev_name $ANS_TMP harddisk $input_selection_opt default "$input_dev_prompt"
+    get_input_dev_name $ANS_TMP harddisk $input_selection_opt default "$input_dev_prompt" ##JAYSON: Displays 12-MENU to get target device or partition to image.
     target_hd="$(cat $ANS_TMP | tr -d \")"
     [ -n "$target_hd" ] && ASK_DEV_NAME=0
   done
@@ -8284,7 +8285,7 @@ task_savedisk() {
 # parameter:
 #  $1 target_dir
 #  $2 target_parts
-task_saveparts() {
+task_saveparts() { ##JAYSON: CONTINUE FROM HERE!
   local target_dir="$1"
   local target_parts="$2"
   local disk_size_sec to_skip dev_to_be_saved_shown_in_warning rc_saveparts
@@ -10425,7 +10426,7 @@ network_config_if_necessary() {
     echo "Running ocs-live-netcfg to configure network..." >> $OCS_NETCFG_LOG
     run_net_cfg="yes"
     while [ "$run_net_cfg" = "yes" ]; do
-      ocs-live-netcfg
+      ocs-live-netcfg ##JAYSON: This setup the network adapter for use and obtains the IP's. It supports network bonding to increase throughput.
       configured_ip="$(get-all-nic-ip --all-ip-address)"
       if [ -z "$configured_ip" ]; then
         echo $msg_delimiter_star_line
