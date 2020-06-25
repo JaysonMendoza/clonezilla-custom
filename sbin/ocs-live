@@ -24,7 +24,7 @@ USAGE() {
 }
 #
 start-prep-ocsroot() {
-  prep-ocsroot $lang_opt
+  prep-ocsroot $lang_opt ##JAYSON: This script will connect to the resource where the image is to be stored, and mount it.
   rc="$?"
   if [ "$rc" -gt 0 ]; then
     [ "$BOOTUP" = "color" ] && $SETCOLOR_WARNING
@@ -93,7 +93,7 @@ ask_and_load_lang_set $ocs_lang
 [ -n "$postaction" ] && postaction_opt="-p $postaction"
 # 1. prep-ocsroot
 if [ "$do_prep_ocsroot" = "yes" ]; then ##Default is yes
-  start-prep-ocsroot
+  start-prep-ocsroot ##JAYSON: This will mount the location where the image will be stored/sourced from.
 fi
 
 # 2. ocs-sr -x

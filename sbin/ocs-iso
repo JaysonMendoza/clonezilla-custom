@@ -364,12 +364,18 @@ if [ -z "$template_mode" ]; then
     # It's running from Clonezilla live media, use the existing resource
     template_mode="from-booting-live-media"
     [ "$BOOTUP" = "color" ] && $SETCOLOR_WARNING
-    echo "Found a Clonezilla live media... Will use that as a template..."
+    echo "Found a Clonewar live media... Will use that as a template..."
     [ "$BOOTUP" = "color" ] && $SETCOLOR_NORMAL
   else
-    template_mode="from-downloaded-live-media"
-    [ "$BOOTUP" = "color" ] && $SETCOLOR_WARNING
-    echo "No Clonezilla live media was found... Will use the downloaded template from Clonezilla repository..."
+    ##GDMS## FEATURE REMOVED FOR SECURITY. DOWNLOADING FROM THIS REPO IS NOT ALLOWED
+    ##GDMS## OLD CODE
+    ##GDMS## template_mode="from-downloaded-live-media"
+    ##GDMS## [ "$BOOTUP" = "color" ] && $SETCOLOR_WARNING
+    ##GDMS## echo "No Clonezilla live media was found... Will use the downloaded template from Clonezilla repository..."
+    ##GDMS## [ "$BOOTUP" = "color" ] && $SETCOLOR_NORMAL
+    ##GDMS## NEW CODE
+    [ "$BOOTUP" = "color" ] && $SETCOLOR_FAILURE
+    echo "Clonewar live media not found. Download option disabled. Please run from an existing Clonewar bootable."
     [ "$BOOTUP" = "color" ] && $SETCOLOR_NORMAL
   fi 
 fi 

@@ -1283,7 +1283,7 @@ save_part_by_partclone() {
   compress_prog_opt="$IMG_CLONE_CMP"
   [ -z "$IMG_CLONE_CMP" ] && compress_prog_opt="gzip -c $extra_gzip_opt"
   compress_prog_prompt="$(echo "$compress_prog_opt" | sed -e "s/ -.*//g")"
-  comp_suf="$(ocs-get-comp-suffix $compress_prog_opt)"
+  comp_suf="$(ocs-get-comp-suffix $compress_prog_opt)" ##JAYSON: This is a function not a script and its in this file.
 
   echo $msg_delimiter_star_line | tee --append ${OCS_LOGFILE}
   echo "Checking the disk space... " && disk_full_test $image_name_
@@ -4626,7 +4626,7 @@ get_input_dev_name() {
     else
        height="$MAX_DIALOG_HEIGHT"
     fi
-    #
+    ##JAYSON: This is 12-MENU and prompts the user to choose the disk or partition to be imaged.
     while [ "$ASK_INPUT" -eq 1 ]; do
       $DIA --backtitle "$msg_nchc_free_software_labs" --title "$msg_nchc_clonezilla | $msg_mode: $ocs_mode_prompt" \
         --$selection "$msg_choose_dev_to_what" 0 0 $height $HARDDEVS \
@@ -7799,6 +7799,7 @@ get_target_dir_name_when_saving() {
   local img_name_prompt="$1" # The image name is optional, only for prompt in the dialog.
   local ANS_TMP
   local ASK_IMG_NAME=1
+  ##JAYSON: This is 11-MENU
   ANS_TMP=`mktemp /tmp/ocs_ans.XXXXXX`
   trap "[ -f "$ANS_TMP" ] && rm -f $ANS_TMP" HUP INT QUIT TERM EXIT
   while [ "$ASK_IMG_NAME" -ne 0 ]; do
@@ -7834,7 +7835,7 @@ get_target_hd_name_from_local_machine() {
   trap "[ -f "$ANS_TMP" ] && rm -f $ANS_TMP" HUP INT QUIT TERM EXIT
   [ -z "$input_selection_opt" ] && input_selection_opt="default"
   while [ "$ASK_DEV_NAME" -ne 0 ]; do
-    get_input_dev_name $ANS_TMP harddisk $input_selection_opt default "$input_dev_prompt"
+    get_input_dev_name $ANS_TMP harddisk $input_selection_opt default "$input_dev_prompt" ##JAYSON: Displays 12-MENU to get target device or partition to image.
     target_hd="$(cat $ANS_TMP | tr -d \")"
     [ -n "$target_hd" ] && ASK_DEV_NAME=0
   done
@@ -8284,7 +8285,7 @@ task_savedisk() {
 # parameter:
 #  $1 target_dir
 #  $2 target_parts
-task_saveparts() {
+task_saveparts() { ##JAYSON: CONTINUE FROM HERE!
   local target_dir="$1"
   local target_parts="$2"
   local disk_size_sec to_skip dev_to_be_saved_shown_in_warning rc_saveparts
@@ -8375,7 +8376,7 @@ task_saveparts() {
     [ "$force_dma_on" = "yes" ] && turn_on_hd_dma /dev/$ihd
   done
   # Turn off swap and LVM2, unlock the busy partitions.
-  turn_off_swap_and_LVM2
+  turn_off_swap_and_LVM2 #JAYSON: calls function sin drbl-functions and then script ocs-lvm2-stop
 
   # Create the image directory
   mkdir -p $target_dir_fullpath
@@ -10322,13 +10323,13 @@ check_if_tty_the_specified_one_and_continue() {
     fi
   fi
   
-  ##JAYSON: This calls 4-MENU to stat clonezilla or enter shell.
+  ##JAYSON: This calls 4-MENU to stat clonewar or enter shell.
   TMP="$(mktemp /tmp/ocslivemode.XXXXXX)"
   trap "[ -f "$TMP" ] && rm -f $TMP" HUP INT QUIT TERM EXIT
   $DIA --backtitle "$msg_nchc_free_software_labs" --title  \
   "$msg_start_clonezilla" --menu "$msg_start_clonezilla_or_enter_shell\n$msg_choose_mode:" \
   0 0 0 $DIA_ESC \
-  "Start_Clonezilla" "$msg_start_clonezilla" \
+  "Start_Clonewar" "$msg_start_clonezilla" \
   "Enter_shell"      "$msg_enter_cml" \
   2> $TMP
   ocslivemode="$(cat $TMP)"
@@ -10336,8 +10337,8 @@ check_if_tty_the_specified_one_and_continue() {
   [ -f "$TMP" ] && rm -f $TMP
   
   case "$ocslivemode" in
-    "Start_Clonezilla") 
-      echo "Start Clonezilla now..." ;;
+    "Start_Clonewar") 
+      echo "Start Clonewar now..." ;;
     "Enter_shell"|"") exit 99 ;;
   esac
 } # end of check_if_tty_the_specified_one_and_continue
@@ -10425,7 +10426,7 @@ network_config_if_necessary() {
     echo "Running ocs-live-netcfg to configure network..." >> $OCS_NETCFG_LOG
     run_net_cfg="yes"
     while [ "$run_net_cfg" = "yes" ]; do
-      ocs-live-netcfg
+      ocs-live-netcfg ##JAYSON: This setup the network adapter for use and obtains the IP's. It supports network bonding to increase throughput.
       configured_ip="$(get-all-nic-ip --all-ip-address)"
       if [ -z "$configured_ip" ]; then
         echo $msg_delimiter_star_line
@@ -11834,75 +11835,77 @@ output_blkid_info() {
   LC_ALL=C blkid | sort -V > $output_f
 } # end of output_blkid_info
 #
-get_latest_kernel_ver_in_repository() {
-  # Since we might run this on gutsy to create hardy live, so we can not use apt-cache to search that. Another approach is to use apt-file to do that. However, it looks like the file http://opensource.nchc.org.tw/ubuntu/dists/hardy/Contents-i386.gz which apt-file fetched is not updated with repository.
-  local ktmp kver dist_path_chklist
-  local arch_s="$1"
-  # release_kernel_ver is global variable
-  # If arch_s is not assigned, use amd64 as default.
-  [ -z "$arch_s" ] && arch_s="amd64"
 
-  ktmp="$(mktemp -d /tmp/live_kver.XXXXXX || exit 1)"
-  if [ -n "$(echo $mirror_url | grep -i "ubuntu")" ]; then
-    # For Ubuntu path, we can check update one (e.g. raring-updates) first
-    dist_path_chklist="$debian_dist-updates $debian_dist"
-  else
-    # Debian, no path with "*-updates"
-    dist_path_chklist="$debian_dist"
-  fi
-  for i in $dist_path_chklist; do
-    echo "Downloading $mirror_url/dists/$i/main/binary-${arch_s}/Packages.xz to finding latest kernel version..."
-    LC_ALL=C wget $wget_opt -P $ktmp/ $mirror_url/dists/$i/main/binary-${arch_s}/Packages.xz
-    # The info in the Packages.xz is like:
-    # Package: linux-image-4.8.0-1-686-pae-unsigned
-    # Package: linux-image-4.8.0-1-686-unsigned
-    # Package: linux-image-4.8.0-1-rt-686-pae-unsigned
-    # Package: linux-image-4.7.0-1-grsec-686-pae
-    # Package: linux-image-4.8.0-1-686
-    # Package: linux-image-4.8.0-1-686-pae
-    # Package: linux-image-4.8.0-1-rt-686-pae
-    # Package: linux-image-4.9.0-3-amd64-dbg
-    # Package: linux-image-5.4.0-4-arm64-unsigned
-    # Package: linux-image-5.4.0-4-armmp
-    # Ubuntu amd64:
-    # Package: linux-image-5.4.0-1002-oem
-    # Package: linux-image-5.4.0-14-lowlatency
-    # Package: linux-image-5.4.0-14-generic
-    # Package: linux-image-5.4.0-9-lowlatency
-    # Package: linux-image-5.4.0-9-generic
-    # Ubuntu arm64:
-    # Package: linux-image-5.4.0-14-generic
-    # Package: linux-image-5.4.0-14-snapdragon
-    # Ubuntu armhf:
-    # Package: linux-image-5.4.0-14-generic
-    # Package: linux-image-5.4.0-14-generic-lpae
-    # ocs_live_exclude_kernels is from drbl-ocs.conf
-    # We only want the kernel: 686, amd64, arm64, armmp, generic, generic-lpae
-    # They are assigned by "ocs_live_only_kernels" in drbl-ocs.conf 
-    ocs_live_kernel_filter="grep -E -- $ocs_live_only_kernels"
-    kver="$(LC_ALL=C xzgrep -E '^Package: linux-image-[[:digit:]]+\.[[:digit:]]+.*-' $ktmp/Packages.xz | $ocs_live_kernel_filter | sort -r -V | uniq | head -n 1 | sed -r -e 's|^Package: linux-image-||g' | awk -F"-" '{print $1"-"$2}')" 
+##GDMS## REMOVED - WGET SECURITY RISK, not necessary
+# get_latest_kernel_ver_in_repository() {
+#   # Since we might run this on gutsy to create hardy live, so we can not use apt-cache to search that. Another approach is to use apt-file to do that. However, it looks like the file http://opensource.nchc.org.tw/ubuntu/dists/hardy/Contents-i386.gz which apt-file fetched is not updated with repository.
+#   local ktmp kver dist_path_chklist
+#   local arch_s="$1"
+#   # release_kernel_ver is global variable
+#   # If arch_s is not assigned, use amd64 as default.
+#   [ -z "$arch_s" ] && arch_s="amd64"
 
-    if [ -z "$kver" ]; then
-      # Clean Packages.xz to avoid wget using another name like Packages.xz.1 then search the next again
-      rm -f $ktmp/Packages.xz
-    else
-      # Found! Use it. 
-      break
-    fi
-  done
-  if [ -n "$kver" ]; then
-    release_kernel_ver="$kver"
-  else
-    [ "$BOOTUP" = "color" ] && $SETCOLOR_WARNING
-    echo "Warning!"
-    echo "Unable to find the latest kernel version in $mirror_url/dists/$i/main/binary-${arch_s}/Packages.xz. Use the pre-defined one."
-    [ "$BOOTUP" = "color" ] && $SETCOLOR_NORMAL
-    echo -n "$msg_press_enter_to_continue"
-    read 
-    eval release_kernel_ver="\$${i}_release_kernel_ver_def"
-  fi
-  [ -d "$ktmp" -a -n "$(echo $ktmp | grep "live_kver")" ] && rm -rf $ktmp
-} # end of get_latest_kernel_ver_in_repository
+#   ktmp="$(mktemp -d /tmp/live_kver.XXXXXX || exit 1)"
+#   if [ -n "$(echo $mirror_url | grep -i "ubuntu")" ]; then
+#     # For Ubuntu path, we can check update one (e.g. raring-updates) first
+#     dist_path_chklist="$debian_dist-updates $debian_dist"
+#   else
+#     # Debian, no path with "*-updates"
+#     dist_path_chklist="$debian_dist"
+#   fi
+#   for i in $dist_path_chklist; do
+#     echo "Downloading $mirror_url/dists/$i/main/binary-${arch_s}/Packages.xz to finding latest kernel version..."
+#     LC_ALL=C wget $wget_opt -P $ktmp/ $mirror_url/dists/$i/main/binary-${arch_s}/Packages.xz
+#     # The info in the Packages.xz is like:
+#     # Package: linux-image-4.8.0-1-686-pae-unsigned
+#     # Package: linux-image-4.8.0-1-686-unsigned
+#     # Package: linux-image-4.8.0-1-rt-686-pae-unsigned
+#     # Package: linux-image-4.7.0-1-grsec-686-pae
+#     # Package: linux-image-4.8.0-1-686
+#     # Package: linux-image-4.8.0-1-686-pae
+#     # Package: linux-image-4.8.0-1-rt-686-pae
+#     # Package: linux-image-4.9.0-3-amd64-dbg
+#     # Package: linux-image-5.4.0-4-arm64-unsigned
+#     # Package: linux-image-5.4.0-4-armmp
+#     # Ubuntu amd64:
+#     # Package: linux-image-5.4.0-1002-oem
+#     # Package: linux-image-5.4.0-14-lowlatency
+#     # Package: linux-image-5.4.0-14-generic
+#     # Package: linux-image-5.4.0-9-lowlatency
+#     # Package: linux-image-5.4.0-9-generic
+#     # Ubuntu arm64:
+#     # Package: linux-image-5.4.0-14-generic
+#     # Package: linux-image-5.4.0-14-snapdragon
+#     # Ubuntu armhf:
+#     # Package: linux-image-5.4.0-14-generic
+#     # Package: linux-image-5.4.0-14-generic-lpae
+#     # ocs_live_exclude_kernels is from drbl-ocs.conf
+#     # We only want the kernel: 686, amd64, arm64, armmp, generic, generic-lpae
+#     # They are assigned by "ocs_live_only_kernels" in drbl-ocs.conf 
+#     ocs_live_kernel_filter="grep -E -- $ocs_live_only_kernels"
+#     kver="$(LC_ALL=C xzgrep -E '^Package: linux-image-[[:digit:]]+\.[[:digit:]]+.*-' $ktmp/Packages.xz | $ocs_live_kernel_filter | sort -r -V | uniq | head -n 1 | sed -r -e 's|^Package: linux-image-||g' | awk -F"-" '{print $1"-"$2}')" 
+
+#     if [ -z "$kver" ]; then
+#       # Clean Packages.xz to avoid wget using another name like Packages.xz.1 then search the next again
+#       rm -f $ktmp/Packages.xz
+#     else
+#       # Found! Use it. 
+#       break
+#     fi
+#   done
+#   if [ -n "$kver" ]; then
+#     release_kernel_ver="$kver"
+#   else
+#     [ "$BOOTUP" = "color" ] && $SETCOLOR_WARNING
+#     echo "Warning!"
+#     echo "Unable to find the latest kernel version in $mirror_url/dists/$i/main/binary-${arch_s}/Packages.xz. Use the pre-defined one."
+#     [ "$BOOTUP" = "color" ] && $SETCOLOR_NORMAL
+#     echo -n "$msg_press_enter_to_continue"
+#     read 
+#     eval release_kernel_ver="\$${i}_release_kernel_ver_def"
+#   fi
+#   [ -d "$ktmp" -a -n "$(echo $ktmp | grep "live_kver")" ] && rm -rf $ktmp
+# } # end of get_latest_kernel_ver_in_repository
 #
 get_efi_hd_boot_entry_info() {
   # This function is used to get some variables for boot entry in EFI NVRAM or the saved file. E.g. it's used to get the following variables in Boot0004 for CentOS 6.
@@ -12233,97 +12236,97 @@ syslinux/isolinux.bin	2
 syslinux/boot.cat	1
 SORT_END
 }
-#
-download_clonezilla_live() {
-  local cz_ver arch_tag local_cz_file
-  local c_arch="$1"
-  local cz_iso_branch="$2"
-  local iso_url_ocs_live="$3" # if iso_url_ocs_live is not assign, iso_url_for_pxe_ocs_live_default from drbl-ocs.conf will be used.
-  # ocs_live_iso_file is global variable, and it's the output of this function.
-  # ocslive_tmp is global variable. The dir might be removed in function put_clonezilla_live
-  ocslive_tmp="$(mktemp -d /tmp/ocslive_tmp.XXXXXX)"
-  if [ -z "$c_arch" ]; then
-    echo "You have to assign c_arch in function download_clonezilla_live"
-    exit 1
-  fi
+##GDMS## REMOVED - WGET security risk. Not needed in our version.
+# download_clonezilla_live() {
+#   local cz_ver arch_tag local_cz_file
+#   local c_arch="$1"
+#   local cz_iso_branch="$2"
+#   local iso_url_ocs_live="$3" # if iso_url_ocs_live is not assign, iso_url_for_pxe_ocs_live_default from drbl-ocs.conf will be used.
+#   # ocs_live_iso_file is global variable, and it's the output of this function.
+#   # ocslive_tmp is global variable. The dir might be removed in function put_clonezilla_live
+#   ocslive_tmp="$(mktemp -d /tmp/ocslive_tmp.XXXXXX)"
+#   if [ -z "$c_arch" ]; then
+#     echo "You have to assign c_arch in function download_clonezilla_live"
+#     exit 1
+#   fi
 
-  # If c_arch is assigned, we will switch to that iso
-  [ "$BOOTUP" = "color" ] && $SETCOLOR_WARNING
-  echo "The CPU arch for client was assigned as: $c_arch"
-  [ "$BOOTUP" = "color" ] && $SETCOLOR_NORMAL
-  arch_tag="-$c_arch"
+#   # If c_arch is assigned, we will switch to that iso
+#   [ "$BOOTUP" = "color" ] && $SETCOLOR_WARNING
+#   echo "The CPU arch for client was assigned as: $c_arch"
+#   [ "$BOOTUP" = "color" ] && $SETCOLOR_NORMAL
+#   arch_tag="-$c_arch"
 
-  # iso_url_for_pxe_ocs_live_default is from drbl-ocs.conf. e.g. 
-  # (1) http://downloads.sourceforge.net/clonezilla/clonezilla-live-1.2.6-24-i686.iso
-  # (2) http://sourceforge.net/projects/clonezilla/files/clonezilla_live_testing/clonezilla-live-1.2.6-24-i686.iso
-  if [ -z "$iso_url_ocs_live" ]; then
-    # First we try to see if iso_url_for_pxe_ocs_live_default is assigned in drbl-ocs.conf.
-    if [ -n "$iso_url_for_pxe_ocs_live_default" ]; then
-      iso_url_ocs_live="$iso_url_for_pxe_ocs_live_default"
-    fi
-    if [ -z "$iso_url_ocs_live" ]; then
-      # If not assigned in drbl-ocs.conf, try to find one.
-      echo "No Clonezilla live iso was assigned in drbl-ocs.conf or command line option."
-      echo "Trying to find the available Clonezilla live iso from sourceforge..."
-      cz_ver="$(LC_ALL=C get-latest-ocs-live-ver $cz_iso_branch)"
-      iso_url_ocs_live="http://downloads.sourceforge.net/clonezilla/clonezilla-live-${cz_ver}${arch_tag}.iso"
-    fi
-  fi
-  if [ -z "$iso_url_ocs_live" ]; then
-    [ "$BOOTUP" = "color" ] && $SETCOLOR_FAILURE
-    echo "iso_url_ocs_live _NOT_ found in drbl-ocs.conf, and can not be found from $iso_url_for_pxe_ocs_live_default!"
-    [ "$BOOTUP" = "color" ] && $SETCOLOR_NORMAL
-    echo "$msg_program_stop"
-    [ -d "$ocslive_tmp" -a -n "$(echo "$ocslive_tmp" | grep "ocslive")" ] && rm -rf $ocslive_tmp
-    exit 1
-  else
-    [ "$BOOTUP" = "color" ] && $SETCOLOR_WARNING
-    echo "Available Clonezilla live iso URL: $iso_url_ocs_live"
-    [ "$BOOTUP" = "color" ] && $SETCOLOR_NORMAL
-  fi
+#   # iso_url_for_pxe_ocs_live_default is from drbl-ocs.conf. e.g. 
+#   # (1) http://downloads.sourceforge.net/clonezilla/clonezilla-live-1.2.6-24-i686.iso
+#   # (2) http://sourceforge.net/projects/clonezilla/files/clonezilla_live_testing/clonezilla-live-1.2.6-24-i686.iso
+#   if [ -z "$iso_url_ocs_live" ]; then
+#     # First we try to see if iso_url_for_pxe_ocs_live_default is assigned in drbl-ocs.conf.
+#     if [ -n "$iso_url_for_pxe_ocs_live_default" ]; then
+#       iso_url_ocs_live="$iso_url_for_pxe_ocs_live_default"
+#     fi
+#     if [ -z "$iso_url_ocs_live" ]; then
+#       # If not assigned in drbl-ocs.conf, try to find one.
+#       echo "No Clonezilla live iso was assigned in drbl-ocs.conf or command line option."
+#       echo "Trying to find the available Clonezilla live iso from sourceforge..."
+#       cz_ver="$(LC_ALL=C get-latest-ocs-live-ver $cz_iso_branch)"
+#       iso_url_ocs_live="http://downloads.sourceforge.net/clonezilla/clonezilla-live-${cz_ver}${arch_tag}.iso"
+#     fi
+#   fi
+#   if [ -z "$iso_url_ocs_live" ]; then
+#     [ "$BOOTUP" = "color" ] && $SETCOLOR_FAILURE
+#     echo "iso_url_ocs_live _NOT_ found in drbl-ocs.conf, and can not be found from $iso_url_for_pxe_ocs_live_default!"
+#     [ "$BOOTUP" = "color" ] && $SETCOLOR_NORMAL
+#     echo "$msg_program_stop"
+#     [ -d "$ocslive_tmp" -a -n "$(echo "$ocslive_tmp" | grep "ocslive")" ] && rm -rf $ocslive_tmp
+#     exit 1
+#   else
+#     [ "$BOOTUP" = "color" ] && $SETCOLOR_WARNING
+#     echo "Available Clonezilla live iso URL: $iso_url_ocs_live"
+#     [ "$BOOTUP" = "color" ] && $SETCOLOR_NORMAL
+#   fi
 
-  case "$iso_url_ocs_live" in
-  http://*|ftp://*)
-    ocs_live_url_path="$(LC_ALL=C dirname $iso_url_ocs_live)"
-    ocs_live_iso="$(LC_ALL=C basename $iso_url_ocs_live)"
-    if [ "$ocs_live_url_path" = "." ]; then
-      [ "$BOOTUP" = "color" ] && $SETCOLOR_FAILURE
-      echo "No local iso file $ocs_live_iso was found, and no correct URL was found!"
-      [ "$BOOTUP" = "color" ] && $SETCOLOR_WARNING
-      echo "Please make sure iso file $ocs_live_iso exists, or specify a correct URL so that $ocs_live_iso can be downloaded!"
-      echo "Run \"$0 --help\" to get more details"
-      [ "$BOOTUP" = "color" ] && $SETCOLOR_NORMAL
-      echo "$msg_program_stop!"
-      exit 1
-    fi
-    echo "Downloading the Clonezilla live iso from $ocs_live_url_path/$ocs_live_iso..."
-    wget -P "$ocslive_tmp" $ocs_live_url_path/$ocs_live_iso
-    rc="$?"
-    if [ "$rc" -ne 0 ]; then
-      [ "$BOOTUP" = "color" ] && $SETCOLOR_FAILURE
-      echo "Failed to download Clonezilla live iso from $ocs_live_url_path/$ocs_live_iso!"
-      [ "$BOOTUP" = "color" ] && $SETCOLOR_NORMAL
-      echo "$msg_program_stop"
-      [ -d "$ocslive_tmp" -a -n "$(echo "$ocslive_tmp" | grep "ocslive")" ] && rm -rf $ocslive_tmp
-      exit 1
-    fi
-    ocs_live_iso_file="$ocslive_tmp/$ocs_live_iso"
-    ;;
-  file://*)
-    local_cz_file="$(echo $iso_url_ocs_live | sed -e "s|file://||g")"
-    if [ -e "$local_cz_file" ]; then
-      ocs_live_iso_file="$local_cz_file"
-    else
-      [ "$BOOTUP" = "color" ] && $SETCOLOR_FAILURE
-      echo "Local Clonezilla live file \"$ocs_live_url_path\" _NOT_ found!"
-      [ "$BOOTUP" = "color" ] && $SETCOLOR_NORMAL
-      echo "$msg_program_stop"
-      [ -d "$ocslive_tmp" -a -n "$(echo "$ocslive_tmp" | grep "ocslive")" ] && rm -rf $ocslive_tmp
-      exit 1
-    fi
-    ;;
-  esac
-} # end of download_clonezilla_live
+#   case "$iso_url_ocs_live" in
+#   http://*|ftp://*)
+#     ocs_live_url_path="$(LC_ALL=C dirname $iso_url_ocs_live)"
+#     ocs_live_iso="$(LC_ALL=C basename $iso_url_ocs_live)"
+#     if [ "$ocs_live_url_path" = "." ]; then
+#       [ "$BOOTUP" = "color" ] && $SETCOLOR_FAILURE
+#       echo "No local iso file $ocs_live_iso was found, and no correct URL was found!"
+#       [ "$BOOTUP" = "color" ] && $SETCOLOR_WARNING
+#       echo "Please make sure iso file $ocs_live_iso exists, or specify a correct URL so that $ocs_live_iso can be downloaded!"
+#       echo "Run \"$0 --help\" to get more details"
+#       [ "$BOOTUP" = "color" ] && $SETCOLOR_NORMAL
+#       echo "$msg_program_stop!"
+#       exit 1
+#     fi
+#     echo "Downloading the Clonezilla live iso from $ocs_live_url_path/$ocs_live_iso..."
+#     wget -P "$ocslive_tmp" $ocs_live_url_path/$ocs_live_iso
+#     rc="$?"
+#     if [ "$rc" -ne 0 ]; then
+#       [ "$BOOTUP" = "color" ] && $SETCOLOR_FAILURE
+#       echo "Failed to download Clonezilla live iso from $ocs_live_url_path/$ocs_live_iso!"
+#       [ "$BOOTUP" = "color" ] && $SETCOLOR_NORMAL
+#       echo "$msg_program_stop"
+#       [ -d "$ocslive_tmp" -a -n "$(echo "$ocslive_tmp" | grep "ocslive")" ] && rm -rf $ocslive_tmp
+#       exit 1
+#     fi
+#     ocs_live_iso_file="$ocslive_tmp/$ocs_live_iso"
+#     ;;
+#   file://*)
+#     local_cz_file="$(echo $iso_url_ocs_live | sed -e "s|file://||g")"
+#     if [ -e "$local_cz_file" ]; then
+#       ocs_live_iso_file="$local_cz_file"
+#     else
+#       [ "$BOOTUP" = "color" ] && $SETCOLOR_FAILURE
+#       echo "Local Clonezilla live file \"$ocs_live_url_path\" _NOT_ found!"
+#       [ "$BOOTUP" = "color" ] && $SETCOLOR_NORMAL
+#       echo "$msg_program_stop"
+#       [ -d "$ocslive_tmp" -a -n "$(echo "$ocslive_tmp" | grep "ocslive")" ] && rm -rf $ocslive_tmp
+#       exit 1
+#     fi
+#     ;;
+#   esac
+# } # end of download_clonezilla_live
 #
 get_pv_on_disk_from_local_machine() {
   local pv_list lpv_on_dsk ip
