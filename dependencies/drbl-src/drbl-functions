@@ -3146,112 +3146,114 @@ PXE_END
   done
 } # end of output_netinstall_syslinux_pxelinux_menu
 #
-get_syslinux_binary_for_dos_linux() {
-  local sysl_dir="$1"
-  # syslinux_ver is not required. If it's not assigned, the latest one on the web will be used.
-  local syslinux_ver="$2"
-  local syslinux_tarball syslinux_ver_subdir syslinux_extra_c32 dirprefix syslinux_efi_coms
-  [ -z "$sysl_dir" -o ! -d "$sysl_dir" ] && echo "No sysl_dir!" && exit 1
-  # syslinux_binsrc_url is like:
-  # http://www.kernel.org/pub/linux/utils/boot/syslinux/
-  # For any version 4.xx, it will be found in http://www.kernel.org/pub/linux/utils/boot/syslinux/4.xx/. However, the latest one is in http://www.kernel.org/pub/linux/utils/boot/syslinux/
-  if [ -z "$syslinux_ver" ]; then
-    # If no version is assigned, find the latest one.
-    syslinux_tarball="$(LC_ALL=C list_latest_tarball -f xz $syslinux_binsrc_url)" 
-    syslinux_ver="$(LC_ALL=C echo "$syslinux_tarball" | sed -e "s/^syslinux-//g" -e "s/.tar.xz//g")"
-  else
-    syslinux_tarball="syslinux-${syslinux_ver}.tar.xz"
-  fi
-  if [ -z "$(echo $syslinux_ver | grep -iE -- "-pre[[:digit:]]+")" ]; then
-    # Stable release, not testing version.
-    # Convert the version number to subdir name, e..g 4.04 -> 4.xx
-    syslinux_ver_subdir="$(LC_ALL=C echo "$syslinux_ver" | sed -r -e "s/\.[[:digit:]]*$/\.xx/g")"
-  else
-    # Testing release. File name is like: syslinux-6.02-pre16.tar.xz
-    # The URL for such a testing version is like: http://free.nchc.org.tw/syslinux/Testing/6.02/
-    syslinux_ver_subdir="$(LC_ALL=C echo "$syslinux_ver" | sed -r -e "s/-pre[[:digit:]]+$//g")"
-    syslinux_ver_subdir="Testing/$syslinux_ver_subdir"
-  fi
-  echo "Downloading $syslinux_binsrc_url/$syslinux_ver_subdir/$syslinux_tarball..."
-  wget $wget_opt -P $sysl_dir $syslinux_binsrc_url/$syslinux_ver_subdir/$syslinux_tarball
-  # For syslinux 6.x, due to EFI feature was added, *.c32 might be in different dirs, e.g. for menu.c32:
-  # $ tar tvJf syslinux-5.10.tar.xz | grep -w menu.c32
-  # -rwxrwxr-x mfleming/syslinux  25808 2013-06-05 03:33 syslinux-5.10/com32/menu/menu.c32
-  # $ tar tvJf syslinux-6.01.tar.xz |grep -w menu.c32
-  # -rwxrwxr-x mfleming/syslinux  25708 2013-07-04 21:26 syslinux-6.01/bios/com32/menu/menu.c32
-  # -rwxrwxr-x mfleming/syslinux  26012 2013-07-04 21:27 syslinux-6.01/efi32/com32/menu/menu.c32
-  # -rwxrwxr-x mfleming/syslinux  31416 2013-07-04 21:28 syslinux-6.01/efi64/com32/menu/menu.c32
-  # Therefore we have to parse them...
-  # //NOTE// The syslinux tarball (<= ver 6.03) from syslinux.org only contains x86 (32-bit) programs for GNU/Linux, no x86-64 ones.
-  if [ -n "$(tar -tvJf $sysl_dir/syslinux-${syslinux_ver}.tar.xz | \
-	     grep -w "bios/com32/menu/menu.c32")" ]; then
-    dirprefix="bios/"
-  else
-    dirprefix_bios=""
-  fi 
-  # For syslinux 5.x, ./com32/elflink/ldlinux/ldlinux.c32, ./com32/lib/libcom32.c32, and ./com32/libutil/libutil.c32 are required.
-  for i in $sys_pxelinux_v5p_required_c32; do
-    if [ -n "$(LC_ALL=C tar -tvJf $sysl_dir/syslinux-${syslinux_ver}.tar.xz | grep -Ew $i)" ]; then
-      syslinux_extra_c32="syslinux-${syslinux_ver}/${dirprefix}com32/elflink/ldlinux/ldlinux.c32 syslinux-${syslinux_ver}/${dirprefix}com32/lib/libcom32.c32 syslinux-${syslinux_ver}/${dirprefix}com32/libutil/libutil.c32" 
-      break
-    fi
-  done
-  # Extract win32/syslinux.exe, linux/syslinux and more. This is for BIOS machine
-  echo "Extracting files..."
-  mkdir -p $sysl_dir/bios/
-  (
-   cd $sysl_dir/bios/
-   # From syslinux 3.73, linux/syslinux is hardlink to linux/syslinux-nomtools, therefore we have to use --wildcards to extract it. Otherwise it will fail.
-   tar --wildcards -xvJf ../syslinux-${syslinux_ver}.tar.xz syslinux-${syslinux_ver}/${dirprefix}com32/menu/menu.c32 syslinux-${syslinux_ver}/${dirprefix}com32/menu/vesamenu.c32 syslinux-${syslinux_ver}/${dirprefix}com32/chain/chain.c32 syslinux-${syslinux_ver}/${dirprefix}win32/syslinux.exe syslinux-${syslinux_ver}/${dirprefix}win64/syslinux64.exe syslinux-${syslinux_ver}/${dirprefix}linux/syslinux* syslinux-${syslinux_ver}/${dirprefix}extlinux/extlinux* syslinux-${syslinux_ver}/${dirprefix}mbr/mbr.bin syslinux-${syslinux_ver}/${dirprefix}core/isolinux.bin syslinux-${syslinux_ver}/${dirprefix}memdisk/memdisk $syslinux_extra_c32
-   mv -f syslinux-${syslinux_ver}/${dirprefix}com32/menu/menu.c32 .
-   mv -f syslinux-${syslinux_ver}/${dirprefix}com32/menu/vesamenu.c32 .
-   mv -f syslinux-${syslinux_ver}/${dirprefix}com32/chain/chain.c32 .
-   mv -f syslinux-${syslinux_ver}/${dirprefix}win32/syslinux.exe . 
-   mv -f syslinux-${syslinux_ver}/${dirprefix}win64/syslinux64.exe . 
-   mv -f syslinux-${syslinux_ver}/${dirprefix}mbr/mbr.bin .
-   mv -f syslinux-${syslinux_ver}/${dirprefix}linux/syslinux .
-   mv -f syslinux-${syslinux_ver}/${dirprefix}extlinux/extlinux .
-   mv -f syslinux-${syslinux_ver}/${dirprefix}core/isolinux.bin .
-   mv -f syslinux-${syslinux_ver}/${dirprefix}memdisk/memdisk .
-   if [ -n "$syslinux_extra_c32" ]; then
-      mv -f syslinux-${syslinux_ver}/${dirprefix}com32/elflink/ldlinux/ldlinux.c32 .
-      mv -f syslinux-${syslinux_ver}/${dirprefix}com32/lib/libcom32.c32 .
-      mv -f syslinux-${syslinux_ver}/${dirprefix}com32/libutil/libutil.c32 .
-      chmod 644 *.c32
-   fi
-  )
-  # For EFI machine
-  if [ "$live_efi_boot_loader" = "syslinux" ]; then
-    if [ -n "$dirprefix" ]; then
-      # This means the downloaded syslinux support EFI (for version >=6.01), then we should prepare that, too. Here we only add efi64, since efi32 is not very common for modern machine.
-      # Ref: http://www.rodsbooks.com/efi-bootloaders/syslinux.html especially the tarball http://www.rodsbooks.com/efi-bootloaders/syslinux-6.01.pre5-1.tgz
-      syslinux_efi_coms="menu.c32 vesamenu.c32 ldlinux.c32 chain.c32 libutil.c32 libcom32.c32"
-      # ./efi64/efi/syslinux.efi -> bootx64.efi
-      # ./efi64/com32/elflink/ldlinux/ldlinux.e64
-      mkdir -p $sysl_dir/efi/
-      (
-       cd $sysl_dir/efi/
-       tar --wildcards -xvJf ../syslinux-${syslinux_ver}.tar.xz \
-       syslinux-${syslinux_ver}/efi64/efi/syslinux.efi \
-       syslinux-${syslinux_ver}/efi64/com32/elflink/ldlinux/ldlinux.e64 \
-       syslinux-${syslinux_ver}/efi64/com32/menu/menu.c32 \
-       syslinux-${syslinux_ver}/efi64/com32/menu/vesamenu.c32 \
-       syslinux-${syslinux_ver}/efi64/com32/chain/chain.c32 \
-       syslinux-${syslinux_ver}/efi64/com32/lib/libcom32.c32 \
-       syslinux-${syslinux_ver}/efi64/com32/libutil/libutil.c32
+
+##GDMS## Removed for security
+# get_syslinux_binary_for_dos_linux() {
+#   local sysl_dir="$1"
+#   # syslinux_ver is not required. If it's not assigned, the latest one on the web will be used.
+#   local syslinux_ver="$2"
+#   local syslinux_tarball syslinux_ver_subdir syslinux_extra_c32 dirprefix syslinux_efi_coms
+#   [ -z "$sysl_dir" -o ! -d "$sysl_dir" ] && echo "No sysl_dir!" && exit 1
+#   # syslinux_binsrc_url is like:
+#   # http://www.kernel.org/pub/linux/utils/boot/syslinux/
+#   # For any version 4.xx, it will be found in http://www.kernel.org/pub/linux/utils/boot/syslinux/4.xx/. However, the latest one is in http://www.kernel.org/pub/linux/utils/boot/syslinux/
+#   if [ -z "$syslinux_ver" ]; then
+#     # If no version is assigned, find the latest one.
+#     syslinux_tarball="$(LC_ALL=C list_latest_tarball -f xz $syslinux_binsrc_url)" 
+#     syslinux_ver="$(LC_ALL=C echo "$syslinux_tarball" | sed -e "s/^syslinux-//g" -e "s/.tar.xz//g")"
+#   else
+#     syslinux_tarball="syslinux-${syslinux_ver}.tar.xz"
+#   fi
+#   if [ -z "$(echo $syslinux_ver | grep -iE -- "-pre[[:digit:]]+")" ]; then
+#     # Stable release, not testing version.
+#     # Convert the version number to subdir name, e..g 4.04 -> 4.xx
+#     syslinux_ver_subdir="$(LC_ALL=C echo "$syslinux_ver" | sed -r -e "s/\.[[:digit:]]*$/\.xx/g")"
+#   else
+#     # Testing release. File name is like: syslinux-6.02-pre16.tar.xz
+#     # The URL for such a testing version is like: http://free.nchc.org.tw/syslinux/Testing/6.02/
+#     syslinux_ver_subdir="$(LC_ALL=C echo "$syslinux_ver" | sed -r -e "s/-pre[[:digit:]]+$//g")"
+#     syslinux_ver_subdir="Testing/$syslinux_ver_subdir"
+#   fi
+#   echo "Downloading $syslinux_binsrc_url/$syslinux_ver_subdir/$syslinux_tarball..."
+#   wget $wget_opt -P $sysl_dir $syslinux_binsrc_url/$syslinux_ver_subdir/$syslinux_tarball
+#   # For syslinux 6.x, due to EFI feature was added, *.c32 might be in different dirs, e.g. for menu.c32:
+#   # $ tar tvJf syslinux-5.10.tar.xz | grep -w menu.c32
+#   # -rwxrwxr-x mfleming/syslinux  25808 2013-06-05 03:33 syslinux-5.10/com32/menu/menu.c32
+#   # $ tar tvJf syslinux-6.01.tar.xz |grep -w menu.c32
+#   # -rwxrwxr-x mfleming/syslinux  25708 2013-07-04 21:26 syslinux-6.01/bios/com32/menu/menu.c32
+#   # -rwxrwxr-x mfleming/syslinux  26012 2013-07-04 21:27 syslinux-6.01/efi32/com32/menu/menu.c32
+#   # -rwxrwxr-x mfleming/syslinux  31416 2013-07-04 21:28 syslinux-6.01/efi64/com32/menu/menu.c32
+#   # Therefore we have to parse them...
+#   # //NOTE// The syslinux tarball (<= ver 6.03) from syslinux.org only contains x86 (32-bit) programs for GNU/Linux, no x86-64 ones.
+#   if [ -n "$(tar -tvJf $sysl_dir/syslinux-${syslinux_ver}.tar.xz | \
+# 	     grep -w "bios/com32/menu/menu.c32")" ]; then
+#     dirprefix="bios/"
+#   else
+#     dirprefix_bios=""
+#   fi 
+#   # For syslinux 5.x, ./com32/elflink/ldlinux/ldlinux.c32, ./com32/lib/libcom32.c32, and ./com32/libutil/libutil.c32 are required.
+#   for i in $sys_pxelinux_v5p_required_c32; do
+#     if [ -n "$(LC_ALL=C tar -tvJf $sysl_dir/syslinux-${syslinux_ver}.tar.xz | grep -Ew $i)" ]; then
+#       syslinux_extra_c32="syslinux-${syslinux_ver}/${dirprefix}com32/elflink/ldlinux/ldlinux.c32 syslinux-${syslinux_ver}/${dirprefix}com32/lib/libcom32.c32 syslinux-${syslinux_ver}/${dirprefix}com32/libutil/libutil.c32" 
+#       break
+#     fi
+#   done
+#   # Extract win32/syslinux.exe, linux/syslinux and more. This is for BIOS machine
+#   echo "Extracting files..."
+#   mkdir -p $sysl_dir/bios/
+#   (
+#    cd $sysl_dir/bios/
+#    # From syslinux 3.73, linux/syslinux is hardlink to linux/syslinux-nomtools, therefore we have to use --wildcards to extract it. Otherwise it will fail.
+#    tar --wildcards -xvJf ../syslinux-${syslinux_ver}.tar.xz syslinux-${syslinux_ver}/${dirprefix}com32/menu/menu.c32 syslinux-${syslinux_ver}/${dirprefix}com32/menu/vesamenu.c32 syslinux-${syslinux_ver}/${dirprefix}com32/chain/chain.c32 syslinux-${syslinux_ver}/${dirprefix}win32/syslinux.exe syslinux-${syslinux_ver}/${dirprefix}win64/syslinux64.exe syslinux-${syslinux_ver}/${dirprefix}linux/syslinux* syslinux-${syslinux_ver}/${dirprefix}extlinux/extlinux* syslinux-${syslinux_ver}/${dirprefix}mbr/mbr.bin syslinux-${syslinux_ver}/${dirprefix}core/isolinux.bin syslinux-${syslinux_ver}/${dirprefix}memdisk/memdisk $syslinux_extra_c32
+#    mv -f syslinux-${syslinux_ver}/${dirprefix}com32/menu/menu.c32 .
+#    mv -f syslinux-${syslinux_ver}/${dirprefix}com32/menu/vesamenu.c32 .
+#    mv -f syslinux-${syslinux_ver}/${dirprefix}com32/chain/chain.c32 .
+#    mv -f syslinux-${syslinux_ver}/${dirprefix}win32/syslinux.exe . 
+#    mv -f syslinux-${syslinux_ver}/${dirprefix}win64/syslinux64.exe . 
+#    mv -f syslinux-${syslinux_ver}/${dirprefix}mbr/mbr.bin .
+#    mv -f syslinux-${syslinux_ver}/${dirprefix}linux/syslinux .
+#    mv -f syslinux-${syslinux_ver}/${dirprefix}extlinux/extlinux .
+#    mv -f syslinux-${syslinux_ver}/${dirprefix}core/isolinux.bin .
+#    mv -f syslinux-${syslinux_ver}/${dirprefix}memdisk/memdisk .
+#    if [ -n "$syslinux_extra_c32" ]; then
+#       mv -f syslinux-${syslinux_ver}/${dirprefix}com32/elflink/ldlinux/ldlinux.c32 .
+#       mv -f syslinux-${syslinux_ver}/${dirprefix}com32/lib/libcom32.c32 .
+#       mv -f syslinux-${syslinux_ver}/${dirprefix}com32/libutil/libutil.c32 .
+#       chmod 644 *.c32
+#    fi
+#   )
+#   # For EFI machine
+#   if [ "$live_efi_boot_loader" = "syslinux" ]; then
+#     if [ -n "$dirprefix" ]; then
+#       # This means the downloaded syslinux support EFI (for version >=6.01), then we should prepare that, too. Here we only add efi64, since efi32 is not very common for modern machine.
+#       # Ref: http://www.rodsbooks.com/efi-bootloaders/syslinux.html especially the tarball http://www.rodsbooks.com/efi-bootloaders/syslinux-6.01.pre5-1.tgz
+#       syslinux_efi_coms="menu.c32 vesamenu.c32 ldlinux.c32 chain.c32 libutil.c32 libcom32.c32"
+#       # ./efi64/efi/syslinux.efi -> bootx64.efi
+#       # ./efi64/com32/elflink/ldlinux/ldlinux.e64
+#       mkdir -p $sysl_dir/efi/
+#       (
+#        cd $sysl_dir/efi/
+#        tar --wildcards -xvJf ../syslinux-${syslinux_ver}.tar.xz \
+#        syslinux-${syslinux_ver}/efi64/efi/syslinux.efi \
+#        syslinux-${syslinux_ver}/efi64/com32/elflink/ldlinux/ldlinux.e64 \
+#        syslinux-${syslinux_ver}/efi64/com32/menu/menu.c32 \
+#        syslinux-${syslinux_ver}/efi64/com32/menu/vesamenu.c32 \
+#        syslinux-${syslinux_ver}/efi64/com32/chain/chain.c32 \
+#        syslinux-${syslinux_ver}/efi64/com32/lib/libcom32.c32 \
+#        syslinux-${syslinux_ver}/efi64/com32/libutil/libutil.c32
     
-       mv -f syslinux-${syslinux_ver}/efi64/efi/syslinux.efi bootx64.efi
-       mv -f syslinux-${syslinux_ver}/efi64/com32/elflink/ldlinux/ldlinux.e64 .
-       mv -f syslinux-${syslinux_ver}/efi64/com32/menu/menu.c32 .
-       mv -f syslinux-${syslinux_ver}/efi64/com32/menu/vesamenu.c32 .
-       mv -f syslinux-${syslinux_ver}/efi64/com32/chain/chain.c32 .
-       mv -f syslinux-${syslinux_ver}/efi64/com32/lib/libcom32.c32 .
-       mv -f syslinux-${syslinux_ver}/efi64/com32/libutil/libutil.c32 .
-       chmod 644 ldlinux.e64 *.c32
-      )
-    fi
-  fi
-} # end of get_syslinux_binary_for_dos_linux
+#        mv -f syslinux-${syslinux_ver}/efi64/efi/syslinux.efi bootx64.efi
+#        mv -f syslinux-${syslinux_ver}/efi64/com32/elflink/ldlinux/ldlinux.e64 .
+#        mv -f syslinux-${syslinux_ver}/efi64/com32/menu/menu.c32 .
+#        mv -f syslinux-${syslinux_ver}/efi64/com32/menu/vesamenu.c32 .
+#        mv -f syslinux-${syslinux_ver}/efi64/com32/chain/chain.c32 .
+#        mv -f syslinux-${syslinux_ver}/efi64/com32/lib/libcom32.c32 .
+#        mv -f syslinux-${syslinux_ver}/efi64/com32/libutil/libutil.c32 .
+#        chmod 644 ldlinux.e64 *.c32
+#       )
+#     fi
+#   fi
+# } # end of get_syslinux_binary_for_dos_linux
 #
 put_syslinux_makeboot_for_usb_flash() {
   local t_dir="$1"
@@ -3681,49 +3683,51 @@ Acquire
 APT_END
 } # end of disable_apt_lang_translation
 #
-get_latest_pkg_in_drbl_repository() {
-  local branch pkg ktmp
-  # pver is global variabl
-  branch="$1" # e.g. live-experimental, unstable...
-  pkg="$2"  # e.g. live-boot
-  if [ -z "$branch" ]; then
-    echo "No \$branch in function get_latest_pkg_in_repository!"
-    exit 1
-  fi
-  if [ -z "$pkg" ]; then
-    echo "No \$pkg in function get_latest_pkg_in_repository!"
-    exit 1
-  fi
-  ktmp="$(mktemp -d /tmp/live_pver.XXXXXX || exit 1)"
-    echo "Downloading $drbl_mirror_url/dists/drbl/$branch/binary-amd64/Packages.xz to finding latest $pkg version..."
-    LC_ALL=C wget -q -P $ktmp/ $drbl_mirror_url/dists/drbl/$branch/binary-amd64/Packages.xz
-    # The versions might be with epoch like:
-    # 4.0.2-1.drbl15
-    # 1:20170623.drbl1
-    # Hence we add all of them as:
-    # 0:4.0.2-1.drbl15
-    # 1:20170623.drbl1
-    pver="$(xzgrep -Ew -A 30 "^Package: $pkg([[:space:]]+|$)" $ktmp/Packages.xz | grep -E "^Version:" | sed -e "s/^Version: //g" | sed -r -e "s/^([^:]+)$/0:\1/g" | sort -V -r | uniq | head -n 1)"
-    if [ -z "$pver" ]; then
-      # Clean Packages.xz to avoid wget using another name like Packages.xz.1 then search the next again
-      rm -f $ktmp/Packages.xz
-      return 1
-    fi
-  if [ -n "$pver" ]; then
-    # After the comparison is done, we have to change it back, i.e.,
-    # 0:4.0.2-1.drbl15 -> 4.0.2-1.drbl15
-    pver="$(echo $pver | sed -r -e "s/^0://g")"
-  else
-    [ "$BOOTUP" = "color" ] && $SETCOLOR_WARNING
-    echo "Warning!"
-    echo "Unable to find the latest package version in $drbl_mirror_url/dists/$i/main/binary-amd64/Packages.xz."
-    [ "$BOOTUP" = "color" ] && $SETCOLOR_NORMAL
-    echo -n "$msg_press_enter_to_continue"
-    read 
-  fi
-  [ -d "$ktmp" -a -n "$(echo $ktmp | grep "live_pver")" ] && rm -rf $ktmp
-  return 0
-} # end of get_latest_pkg_in_drbl_repository
+
+##GDMS## Removed for security
+# get_latest_pkg_in_drbl_repository() {
+#   local branch pkg ktmp
+#   # pver is global variabl
+#   branch="$1" # e.g. live-experimental, unstable...
+#   pkg="$2"  # e.g. live-boot
+#   if [ -z "$branch" ]; then
+#     echo "No \$branch in function get_latest_pkg_in_repository!"
+#     exit 1
+#   fi
+#   if [ -z "$pkg" ]; then
+#     echo "No \$pkg in function get_latest_pkg_in_repository!"
+#     exit 1
+#   fi
+#   ktmp="$(mktemp -d /tmp/live_pver.XXXXXX || exit 1)"
+#     echo "Downloading $drbl_mirror_url/dists/drbl/$branch/binary-amd64/Packages.xz to finding latest $pkg version..."
+#     LC_ALL=C wget -q -P $ktmp/ $drbl_mirror_url/dists/drbl/$branch/binary-amd64/Packages.xz
+#     # The versions might be with epoch like:
+#     # 4.0.2-1.drbl15
+#     # 1:20170623.drbl1
+#     # Hence we add all of them as:
+#     # 0:4.0.2-1.drbl15
+#     # 1:20170623.drbl1
+#     pver="$(xzgrep -Ew -A 30 "^Package: $pkg([[:space:]]+|$)" $ktmp/Packages.xz | grep -E "^Version:" | sed -e "s/^Version: //g" | sed -r -e "s/^([^:]+)$/0:\1/g" | sort -V -r | uniq | head -n 1)"
+#     if [ -z "$pver" ]; then
+#       # Clean Packages.xz to avoid wget using another name like Packages.xz.1 then search the next again
+#       rm -f $ktmp/Packages.xz
+#       return 1
+#     fi
+#   if [ -n "$pver" ]; then
+#     # After the comparison is done, we have to change it back, i.e.,
+#     # 0:4.0.2-1.drbl15 -> 4.0.2-1.drbl15
+#     pver="$(echo $pver | sed -r -e "s/^0://g")"
+#   else
+#     [ "$BOOTUP" = "color" ] && $SETCOLOR_WARNING
+#     echo "Warning!"
+#     echo "Unable to find the latest package version in $drbl_mirror_url/dists/$i/main/binary-amd64/Packages.xz."
+#     [ "$BOOTUP" = "color" ] && $SETCOLOR_NORMAL
+#     echo -n "$msg_press_enter_to_continue"
+#     read 
+#   fi
+#   [ -d "$ktmp" -a -n "$(echo $ktmp | grep "live_pver")" ] && rm -rf $ktmp
+#   return 0
+# } # end of get_latest_pkg_in_drbl_repository
 #
 gen_CDG_checksums() {
   # This function will generate Clonezilla, DRBL, GParted live checksum files, including MD5SUMS, SHA1SUMS, and a file called CHECKSUMS.TXT including MD5 and SHA1 checksums.

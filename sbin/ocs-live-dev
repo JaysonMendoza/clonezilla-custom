@@ -438,7 +438,6 @@ if [ -z "$template_mode" ]; then
     ##GDMS## NEW CODE
     [ "$BOOTUP" = "color" ] && $SETCOLOR_FAILURE
     echo "Clonewar live media not found. Download option disabled. Please run from an existing Clonewar bootable."
-    read
     [ "$BOOTUP" = "color" ] && $SETCOLOR_NORMAL
     exit 1
   fi 
