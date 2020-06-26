@@ -29,6 +29,7 @@ declare excludeFile="" #This file is a plain text list of file names that should
 declare src="$DEFAULT_SRC" #The location of the directory where source files will be obtained.
 declare tmpDir="" #The location of the temporary directory where zip files will be stored and modified.
 declare -i filesCopied=0
+declare -i filesRemoved=0
 declare -i filesSkipped=0
 declare logFile="" #This is the logfile that will be left in the target directory on failure.
 declare printLog="" ##Flag that will turn on log file if it is set to any value other than null.
@@ -224,7 +225,7 @@ MAKE_ISO() {
     xorriso \
     -as mkisofs -R -r -J -joliet-long -l -cache-inodes -iso-level 3 \
     -o $outISOFile \
-    -isohybrid-mbr "$src/iso/isohdpfx.bin" -partition_offset 16 \
+    -isohybrid-mbr "$src/dependencies/xorriso/isohdpfx.bin" -partition_offset 16 \
     -A "Clonewar live CD" \
     -publisher "General Dynamics Mission Systems Canada" \
     -b syslinux/isolinux.bin \
@@ -237,11 +238,77 @@ MAKE_ISO() {
     if [ ! -e "$outISOFile" ]; then
         FAILURE_EXIT -l "Failed to create final ISO file."
     else
-        echo "Squashfs successfully extracted"| tee -a $logFile
+        echo "ISO successfully created."| tee -a $logFile
         chown ${SUDO_USER:-${USER}}:${SUDO_USER:-${USER}} $outISOFile
         mv $outISOFile $outPath
     fi
     echo "Contents repackaged into bootable ISO  $outFileName.iso" | tee -a $logFile
+}
+
+# This function will search the target image for occurances of the listed files, and remove them.
+SEEK_AND_REMOVE() {
+    local findOpt="-type f" #Option flags for find
+    local srcDir=()
+    local tarDir=""
+    local category=""
+    local filesRemovedCountStart=$filesRemoved
+    while [ "$#" -gt 0 ]; do
+        case "$1" in
+            -m) #Max Depth set
+                shift
+                [ $1 -gt 0 ] && findOpt="--maxdepth $1 $findOpt" # Sets max search depth for deletions. A value of 1 will only search listed directory.
+                shift
+                ;;
+            -f) #Use a file as the list of files to be removed
+                shift
+                echo "Processing file with deletions list: $1" | tee -a $logFile
+                srcDir="$(cat $1 | tr '[:cntrl:]' ' ')" #replace control characters with spaces
+                [ -z "$srcDir" ] && FAILURE_EXIT -l "SEEK_AND_REMOVE() failure: Provided removal list is empty or cannot be read. File: $1"
+                echo "Done!" | tee -a $logFile
+                shift
+                ;;
+            -*) #error case, unknown flag. 
+                FAILURE_EXIT -l "SEEK_AND_REMOVE() failure. Unknown flag $1."
+                ;;
+            *) break
+            ;;
+        esac
+    done
+    
+    if [ $# -eq 2 ]; then
+        [ -z "$srcDir" ] && FAILURE_EXIT -l "SEEK_AND_REMOVE() failure: If no source provided, option -f must be specified."
+        tarDir=$2
+    elif [ $# -eq 3 ]; then
+        srcDir="$1 $srcDir" #append any given sources to those provided in file.
+        tarDir=$3
+    else
+        FAILURE_EXIT "SEEK_AND_REMOVE() failure: Provided $# arguments, expected 2 or 3."
+    fi
+    category=$1
+    srcDir=($srcDir) #convert to array
+    for target in "${srcDir[@]}"; do
+        local matchResults="$(find $tarDir $findOpt -iname "$target")"
+        echo "---Seeking $target in \"$tarDir\"..." | tee -a $logFile
+        if [ -z "$matchResults" ]; then
+            echo "------No match found!"
+            continue
+        fi
+
+        for match in $matchResults; do
+            if [ -f "$match" ]; then
+                echo "------Deleting $target from $match" | tee -a $logFile
+                rm -f "$match"
+                [ $? -ne 0 ] && FAILURE_EXIT "SEEK_AND_REMOVE() failure: Unable to remove from image: $match"
+                echo "------Success!"| tee -a $logFile
+                (( filesRemoved++ ))
+            else
+                echo ">>>>>>Skipped: Not a regular file or is directory: $match <<"
+                (( filesSkipped++ ))
+            fi
+        done
+    done
+    removeCount=$(( $filesRemoved-$filesRemovedCountStart ))
+    echo "Finished removing $removeCount files for $category from image."| tee -a $logFile
 }
 
 ######################################################################################
@@ -324,7 +391,7 @@ echo ""
 echo "Detecting target file type by extension..." | tee -a $logFile
 fileType="$(echo $targetFile | sed -e "s|.*\.||g")"
 fileType="$(echo $fileType | awk '{print tolower($0)}')"
-echo "$fileType vs iso"
+
 if [ "$fileType" == "iso" ]; then
     echo "Extracting files from ISO..." | tee -a $logFile
     mkdir "$tmpDir/iso"
@@ -361,17 +428,22 @@ fi
 
 echo ""
 #Here we must go through our list of files which must be removed from the image. These files will not be replaced.
+SEEK_AND_REMOVE -f "$src/list-remove-scripts.txt" "Un-used scripts" "$tmpDir/root-squashfs/"
 
-
+echo ""
 #Now we must compare the source files to the target directory. Some files such as GRUB will have duplicates so we narrow
 #The search into one single folder. We do not care that we are modifying program installations because this disk is ment
 #to be treated as a single read only program. It should only run our clonezilla program.
-DIR_COPY "MAIN SCRIPTS" "$src/sbin/* $src/bin/* $src/scripts/sbin/* $src/conf/*" "$tmpDir/root-squashfs/"
-
+DIR_COPY "OCS SCRIPTS" "$src/sbin/* $src/bin/* $src/scripts/sbin/* $src/conf/*" "$tmpDir/root-squashfs/"
+echo ""
+DIR_COPY "DRBL SCRIPTS" "$src/dependencies/drbl-src/*" "$tmpDir/root-squashfs/"
+echo ""
 DIR_COPY "STARTUP FILES" "$src/setup/files/ocs/ocs-live.d/* $src/setup/files/ocs/*" "$tmpDir/root-squashfs/etc/ocs/"
-
-DIR_COPY -d "GRUB2 FILES" "$src/grub2/*" "$tmpDir/zip/boot/grub/"
-
+echo ""
+DIR_COPY -d "GRUB2 FILES" "$src/dependencies/grub2/*" "$tmpDir/zip/boot/grub/"
+echo ""
+DIR_COPY -d "SYSLINUX FILES" "$src/dependencies/syslinux/*" "$tmpDir/zip/syslinux/"
+echo ""
 DIR_COPY -d "LANGUAGE FILES" "$src/lang/bash/*" "$tmpDir/root-squashfs/usr/share/drbl/lang/bash/"
 
 
