@@ -6,4 +6,21 @@ ocs-live-hook-functions
 get-latest-ocs-live-ver
 mdisks-checksum
 ocs-match-checksum
-ocs-live-feed-img ocs-live-get-img
+ocs-live-feed-img
+ocs-live-get-img
+create-drbl-live-by-pkg
+drbl-live-hook
+drbl-ocs
+efi-misc-binary-hook
+ocs-btsrv
+ocs-gen-bt-metainfo
+ocs-gen-bt-slices
+ocs-gen-grub2-efi-bldr
+ocs-live-hook
+ocs-live-hook.conf
+ocsmgrd
+ocs-srv-live
+start-drbl-live
+start-drbl-live.service
+stop-drbl-live
+gen-torrent-from-ptcl

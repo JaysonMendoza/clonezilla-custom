@@ -1967,7 +1967,8 @@ if [ "$mode" = "restore" ]; then
     if [ "$inst_grub_opt" = "on" ]; then
       # restoredisk mode.
       # "$inst_grub_opt" = "on" (-g auto) means skip_clean_mbr_opt="off" (no -t)
-      echo "-g auto" "-e1 auto" "-e2" "-r" "-j2" "$opt_confirm_" > $OCS_PARAM_TMP
+      ##GDMS## Changed default for our operations for restore to ""-g auto" "-r" "-j2" "$opt_confirm_"" from "-g auto" "-e1 auto" "-e2" "-r" "-j2" "$opt_confirm_"
+      echo "-g auto" "-r" "-j2" "$opt_confirm_" > $OCS_PARAM_TMP
     else
       # restoreparts mode.
       # "$inst_grub_opt" = "off" (no "-g auto") means skip_clean_mbr_opt="on" (-t)

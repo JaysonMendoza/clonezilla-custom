@@ -87,6 +87,7 @@ INIT() {
     echo "Logfile created: $logFile" | tee $logFile
     echo "Template to Modify: $targetFile" | tee -a $logFile
     echo "Basename for output file: $outFileName" | tee -a $logFile
+    echo "Output Location: $outPath" | tee -a $logFile
     echo "Source for Modifications: $src"| tee -a $logFile
     echo "Temp Directory: $tmpDir"| tee -a $logFile.
     [ -n "$zipFlag" ] && echo "Zip option selected, a zip file will be output at $outPath" | tee -a $logFile
@@ -214,7 +215,8 @@ MAKE_ZIP() {
     zip -r $outZipFile * | tee -a $logFile
     [ ! -e "$outZipFile" ] && FAILURE_EXIT -l "Failed to create final ZIP archive."
     chown ${SUDO_USER:-${USER}}:${SUDO_USER:-${USER}} $outZipFile #Change ownership from root to user who called script.
-     mv $outZipFile $outPath
+    mv $outZipFile $outPath
+    [ $? -ne 0 ] && FAILURE_EXIT "Failed to copy $outZipFile to $outPath"
     echo "ZIP file $outFileName.zip was created successfully!"
 }
 
@@ -241,6 +243,7 @@ MAKE_ISO() {
         echo "ISO successfully created."| tee -a $logFile
         chown ${SUDO_USER:-${USER}}:${SUDO_USER:-${USER}} $outISOFile
         mv $outISOFile $outPath
+        [ $? -ne 0 ] && FAILURE_EXIT "Failed to copy $outISOFile to $outPath"
     fi
     echo "Contents repackaged into bootable ISO  $outFileName.iso" | tee -a $logFile
 }
@@ -279,16 +282,19 @@ SEEK_AND_REMOVE() {
         [ -z "$srcDir" ] && FAILURE_EXIT -l "SEEK_AND_REMOVE() failure: If no source provided, option -f must be specified."
         tarDir=$2
     elif [ $# -eq 3 ]; then
-        srcDir="$1 $srcDir" #append any given sources to those provided in file.
+        srcDir="$2 $srcDir" #append any given sources to those provided in file.
         tarDir=$3
     else
         FAILURE_EXIT "SEEK_AND_REMOVE() failure: Provided $# arguments, expected 2 or 3."
     fi
     category=$1
     srcDir=($srcDir) #convert to array
+    echo "Starting to remove $category from $tarDir in image..."
+
     for target in "${srcDir[@]}"; do
-        local matchResults="$(find $tarDir $findOpt -iname "$target")"
-        echo "---Seeking $target in \"$tarDir\"..." | tee -a $logFile
+        local fileName=$(basename $target)
+        local matchResults="$(find $tarDir $findOpt -iname "$fileName")"
+        echo "---Seeking $fileName in \"$tarDir\"..." | tee -a $logFile
         if [ -z "$matchResults" ]; then
             echo "------No match found!"
             continue
@@ -296,7 +302,7 @@ SEEK_AND_REMOVE() {
 
         for match in $matchResults; do
             if [ -f "$match" ]; then
-                echo "------Deleting $target from $match" | tee -a $logFile
+                echo "------Deleting $fileName from $match" | tee -a $logFile
                 rm -f "$match"
                 [ $? -ne 0 ] && FAILURE_EXIT "SEEK_AND_REMOVE() failure: Unable to remove from image: $match"
                 echo "------Success!"| tee -a $logFile
@@ -322,10 +328,11 @@ while [ "$#" -gt 0 ]; do
         -o|--output)
             shift
             if [ -d "$1" ]; then #Path given
-                outPath=$1
+                outPath=$(realpath $1)
             else #Path and filename given
                 outFileName=$(basename $1 >&- 2>&-)
                 outPath=${1%$outFileName}
+                outPath=$(realpath $outPath) #Convert incase link was passed
                 [ ! -d "$outPath" ] && FAILURE_EXIT "The output directory $outPath does not exist or is not writable from the given output target $1"
                 #Strip away all extensions from filename
                 outfile="$(echo $outFile | sed -e "s|\..*||g")" #Remove the extension. You cannot use a . in the filename or it will consider it an extension.
@@ -429,6 +436,12 @@ fi
 echo ""
 #Here we must go through our list of files which must be removed from the image. These files will not be replaced.
 SEEK_AND_REMOVE -f "$src/list-remove-scripts.txt" "Un-used scripts" "$tmpDir/root-squashfs/"
+echo ""
+SEEK_AND_REMOVE "DRBL Startup scripts" "$src/setup/files/ocs/drbl-live.d/*" "$tmpDir/root-squashfs/etc/drbl/"
+echo ""
+SEEK_AND_REMOVE "OCS Startup Scripts" "$src/setup/files/ocs/ocs-live.d/setup/files/ocs/ocs-live.d/S07arm-wol" "$tmpDir/root-squashfs/etc/ocs/"
+echo ""
+SEEK_AND_REMOVE "DRBL-OCS Sample Scripts" "$src/samples/*" "$tmpDir/root-squashfs/usr/share/drbl/samples/"
 
 echo ""
 #Now we must compare the source files to the target directory. Some files such as GRUB will have duplicates so we narrow
