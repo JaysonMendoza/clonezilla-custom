@@ -75,6 +75,22 @@ USAGE() {
 }
 
 INIT() {
+    
+    # Check if terminal supports colors output
+    # This code is from makeboot.sh from which this file is dependent.
+    colors_no="$(LC_ALL=C tput colors 2>/dev/null)"
+
+    BOOTUP=""
+    if [ -n "$colors_no" ]; then
+        if [ "$colors_no" -ge 8 ]; then
+            [ -z ${SETCOLOR_SUCCESS:-''} ] && SETCOLOR_SUCCESS="echo -en \\033[1;32m"
+            [ -z ${SETCOLOR_FAILURE:-''} ] && SETCOLOR_FAILURE="echo -en \\033[1;31m"
+            [ -z ${SETCOLOR_WARNING:-''} ] && SETCOLOR_WARNING="echo -en \\033[1;33m"
+            [ -z ${SETCOLOR_NORMAL:-''}  ] && SETCOLOR_NORMAL="echo -en \\033[0;39m"
+            BOOTUP="color"
+        fi
+    fi
+
     #Create temporary directory to unzip.
     echo "Creating temporary directory."
     tmpDir=$(mktemp -d /tmp/clonewar-custom.XXXXXX)
@@ -82,7 +98,7 @@ INIT() {
     id=${tmpDir##"/tmp/clonewar-custom."}
     
     #Check the filename and destination to see if it already exists and set default if not
-    [ -z "$outFileName" ] && outFileName="$(date +%Y-%m-%d)clonewawr-$id"
+    [ -z "$outFileName" ] && outFileName="$(date +%Y-%m-%d)clonewar-$id"
     logFile="$(realpath ~/$outFileName-build-log.txt)"
     echo "Logfile created: $logFile" | tee $logFile
     echo "Template to Modify: $targetFile" | tee -a $logFile
@@ -91,6 +107,33 @@ INIT() {
     echo "Source for Modifications: $src"| tee -a $logFile
     echo "Temp Directory: $tmpDir"| tee -a $logFile.
     [ -n "$zipFlag" ] && echo "Zip option selected, a zip file will be output at $outPath" | tee -a $logFile
+}
+
+printDialogue() {
+    while [ $# -gt 0 ]; do
+        case "$1" in 
+            -w) $SETCOLOR_WARNING
+                shift
+                ;;
+            -s) $SETCOLOR_SUCCESS
+                shift
+                ;;
+            -f) $SETCOLOR_FAILURE
+                shift
+                ;;
+            -*) shift #Ignore
+                ;;
+            *)  break
+                ;;
+        esac
+    done
+
+    #print all messages
+    while [ $# -gt 0 ]; do
+        echo "$1"
+        shift
+    done
+    $SETCOLOR_NORMAL
 }
 
 #Function that handles failures within the script. It will print approrpiate error messages, handle the error log, and then handle cleanup.
@@ -464,8 +507,11 @@ DIR_COPY -d "LANGUAGE FILES" "$src/lang/bash/*" "$tmpDir/root-squashfs/usr/share
 if [ -n "$pauseFlag" ]; then
     echo "All files have been copied to the new image."
     echo "Rebuild paused, make modifications at $tmpDir"
-    echo "Press any button to continue..."
-    read
+    rsp=""
+    while [ "$rsp" -eq "yes" ]; do
+        read -p "Please tyle \"yes\" when you are ready to continue." rsp
+        rsp=$(echo "$rsp" | tr '[:upper:]' '[:lower:]')
+    done
 fi
 
 #We now rebuild the root filesystem and replace our old one in the template.

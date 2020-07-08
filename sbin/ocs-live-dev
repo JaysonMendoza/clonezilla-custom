@@ -657,7 +657,7 @@ if [ "$target_mode" = "release_file" ]; then
   if [ -n "$target_zip_prefix" ]; then
     output_filename="${target_zip_prefix}.${prefer_archive}"
   else
-    output_filename="clonezilla-live-${zip_label_tag}.${prefer_archive}"
+    output_filename="clonewar-${zip_label_tag}.${prefer_archive}" ##GDMS## "clonezilla-live-${zip_label_tag}.${prefer_archive}"
   fi
   echo "The output file name is: $output_filename"
   # Clean the stale zip file
@@ -927,7 +927,7 @@ case "$boot_loader" in
 esac
 # put version tag
 # The content is like clonezilla-live-20070308
-echo "clonezilla-live-${zip_label_tag}" > $USB_TMP/Clonezilla-Live-Version
+echo "clonewar-${zip_label_tag}" > $USB_TMP/Clonezilla-Live-Version ##GDMS## "clonezilla-live-${zip_label_tag}"
 echo "This Clonezilla live zip file was created by this command:" >> $USB_TMP/Clonezilla-Live-Version
 echo "$prog $prog_option" >> $USB_TMP/Clonezilla-Live-Version
 # Copy another one in the live dir. It will be used for toram=live mode.

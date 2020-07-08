@@ -471,7 +471,7 @@ gen_config_grub_1(){
   cat <<-BOOT_MENU_END > $output_file
 default	0
 timeout $timeout_sec
-color cyan/blue white/blue
+color white/black yellow/black
 splashimage=/boot/grub/$bg_img
 # since no network setting in the squashfs image, therefore if ip= net.ifnames=0, the network is disabled.
 
@@ -644,8 +644,8 @@ set hidden_timeout_quiet=false
 
 insmod png
 if background_image \$pref/$bg_img; then
-  set color_normal=black/black
-  set color_highlight=magenta/black
+  set color_normal=white/black
+  set color_highlight=white/black
 else
   set color_normal=cyan/blue
   set color_highlight=white/blue
@@ -1211,7 +1211,7 @@ case "$output_format" in
    syslinux|SYSLINUX)
       gen_config_syslinux syslinux ;;
    grub|GRUB)
-      gen_config_grub_1 menu.lst ;;
+      gen_config_grub_1 menu.lst menu.lst ;;
    grub2-efi|GRUB2-EFI|grub2-efi-ia32|GRUB2-EFI-IA32|grub2-efi-x64|GRUB2-EFI-X64)
       # For grub2, no matter it's ia32 or x86-64, the config file is grub.cfg.
       gen_config_grub_2_efi grub.cfg ;;

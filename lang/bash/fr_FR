@@ -222,8 +222,8 @@ msg_etherboot_5_4_is_required='Si Etherboot est utilisé sur le client, alors la
 msg_win_fail_with_Missing_OS='Si le système cloné est MS Windows et que l'\''amorçage échoue avec un message "Système d'\''exploitation manquant" ou "Disque système incorrect", alors essayez de changer le paramètre IDE pour le disque dur dans le BIOS de manière à utiliser LBA plutôt que AUTO.'
 
 # drbl-script
-msg_nchc_title='NCHC - National Center for High-Performance Computing, Taiwan'
-msg_drbl_title='DRBL - Diskless Remote Boot in Linux'
+msg_nchc_title='General Dynamics Mission Systems Canada'
+msg_drbl_title='Clonewar - Clonezilla modifié pour GDMS'
 msg_switch_client_mode='Changement de mode'
 msg_remote_linux='Client Linux à distance, mode par défaut, client puissant'
 # some prompt we have to use _ instead of " " (space) because we need it to be a word for dialog.

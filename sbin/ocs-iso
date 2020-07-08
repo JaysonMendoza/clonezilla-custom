@@ -474,7 +474,7 @@ boot_menu_opt="--version-no $iso_label_tag"
 if [ -n "$target_iso_prefix" ]; then
   target_iso="${target_iso_prefix}.iso"
 else
-  target_iso="clonezilla-live-${iso_label_tag}.iso"
+  target_iso="clonewar-${iso_label_tag}.iso" ##GDMS## Changed from clonezilla-live-${iso_label_tag}.iso
 fi
 echo "The output file name is: $target_iso."
 
@@ -906,8 +906,8 @@ fi
 
 # put version tag
 # The content is like clonezilla-live-20070308
-echo "clonezilla-live-${iso_label_tag}" > $ISOSYSLNX_TMP/Clonezilla-Live-Version
-echo "This Clonezilla live iso file was created by this command:" >> $ISOSYSLNX_TMP/Clonezilla-Live-Version
+echo "clonewar-${iso_label_tag}" > $ISOSYSLNX_TMP/Clonezilla-Live-Version ##GDMS## CHanged from "clonezilla-live-${iso_label_tag}"
+echo "This Clonewar iso file was created by this command:" >> $ISOSYSLNX_TMP/Clonezilla-Live-Version
 echo "$prog $prog_option" >> $ISOSYSLNX_TMP/Clonezilla-Live-Version
 # Copy another one in the live dir. It will be used for toram=live mode.
 cp -a $ISOSYSLNX_TMP/Clonezilla-Live-Version $ISOSYSLNX_TMP/$sys_files_dir/

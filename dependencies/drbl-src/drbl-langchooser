@@ -27,7 +27,7 @@ export LANG=en_US.UTF-8
 TMP="$(mktemp /tmp/lang.XXXXXX)"
 ASK_LANG=1
 while [ "$ASK_LANG" -ne 0 ]; do
-  $DIA --default-item "en_US.UTF-8" --nocancel --backtitle "Free Software Labs, NCHC, Taiwan" --title  \
+  $DIA --default-item "en_US.UTF-8" --nocancel --backtitle "General Dynamics Mission Systems Canada" --title  \
   "Choose language" --menu "Which language do you prefer:" \
   0 0 0 \
   en_US.UTF-8 "English" \
