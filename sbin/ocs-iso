@@ -123,6 +123,7 @@ clean_tmp_dir() {
   fi
 } # End of clean_tmp_dir
 
+##GDMS## To do restore disk it is normally: ocs-iso -g en_US.UTF-8 -t -k NONE -e "-g auto -e1 -e2 -r -j2 -c -p choose restoredisk deletiontest sdc" deletiontestdone!"
 #
 check_if_root
 
@@ -369,54 +370,56 @@ if [ -z "$template_mode" ]; then
   else
     ##GDMS## FEATURE REMOVED FOR SECURITY. DOWNLOADING FROM THIS REPO IS NOT ALLOWED
     ##GDMS## OLD CODE
-    ##GDMS## template_mode="from-downloaded-live-media"
-    ##GDMS## [ "$BOOTUP" = "color" ] && $SETCOLOR_WARNING
-    ##GDMS## echo "No Clonezilla live media was found... Will use the downloaded template from Clonezilla repository..."
-    ##GDMS## [ "$BOOTUP" = "color" ] && $SETCOLOR_NORMAL
-    ##GDMS## NEW CODE
+    # template_mode="from-downloaded-live-media"
+    # [ "$BOOTUP" = "color" ] && $SETCOLOR_WARNING
+    # echo "No Clonezilla live media was found... Will use the downloaded template from Clonezilla repository..."
+    # [ "$BOOTUP" = "color" ] && $SETCOLOR_NORMAL
+    # NEW CODE
     [ "$BOOTUP" = "color" ] && $SETCOLOR_FAILURE
     echo "Clonewar live media not found. Download option disabled. Please run from an existing Clonewar bootable."
     [ "$BOOTUP" = "color" ] && $SETCOLOR_NORMAL
+    exit 1
   fi 
 fi 
 
-if [ "$template_mode" = "from-downloaded-live-media" ]; then
-  if [ ! -f "$DEBIAN_ISO" ]; then
-    echo "Searching for the latest Clonezilla live iso..."
-    cz_ver="$(LC_ALL=C get-latest-ocs-live-ver $clonezilla_iso_branch)"
-    clonezilla_iso_fname="clonezilla-live-${cz_ver}${clonezilla_iso_arch_tag}.iso"
-    iso_url_for_pxe_ocs_live="http://downloads.sourceforge.net/clonezilla/$clonezilla_iso_fname"
-    echo "We need Clonnezilla live iso to create such a recovery cd."
-    echo "Downloadling the iso file from $iso_url_for_pxe_ocs_live..."
-    wget $iso_url_for_pxe_ocs_live
-    get_iso_rc=$?
-    # validate it
-    if [ "$get_iso_rc" -eq 0 ]; then
-      echo -n "Validating $clonezilla_iso_fname... "
-      md5_tmp="$(mktemp -d /tmp/isomd5.XXXXXX)"
-      #  wget http://free.nchc.org.tw/clonezilla-live/stable/MD5SUMS
-      echo -n "Downloading $md5_file_url... "
-      wget $wget_opt -P "$md5_tmp" $md5_file_url
-      if ! grep -w "$clonezilla_iso_fname" $md5_tmp/$md5_file | md5sum -c; then
-        [ "$BOOTUP" = "color" ] && $SETCOLOR_FAILURE
-        echo "$DEBIAN_ISO is broken! Try to remove $clonezilla_iso_fname and run this program again."
-        [ "$BOOTUP" = "color" ] && $SETCOLOR_NORMAL
-        echo "$msg_program_stop"
-        exit 1
-      fi
-      # Rename it to the template iso file name (fixed name)
-      mv -f $clonezilla_iso_fname $DEBIAN_ISO
-    else
-      [ "$BOOTUP" = "color" ] && $SETCOLOR_FAILURE
-      echo "Unable to download $iso_url_for_pxe_ocs_live!"
-      [ "$BOOTUP" = "color" ] && $SETCOLOR_NORMAL
-      echo "$msg_program_stop"
-      exit 1
-    fi
-  else
-    echo "A template iso ($DEBIAN_ISO) was found!"
-  fi
-fi
+##GDMS## FEATURE REMOVED FOR SECURITY. DOWNLOADING FROM THIS REPO IS NOT ALLOWED
+# if [ "$template_mode" = "from-downloaded-live-media" ]; then
+#   if [ ! -f "$DEBIAN_ISO" ]; then
+#     echo "Searching for the latest Clonezilla live iso..."
+#     cz_ver="$(LC_ALL=C get-latest-ocs-live-ver $clonezilla_iso_branch)"
+#     clonezilla_iso_fname="clonezilla-live-${cz_ver}${clonezilla_iso_arch_tag}.iso"
+#     iso_url_for_pxe_ocs_live="http://downloads.sourceforge.net/clonezilla/$clonezilla_iso_fname"
+#     echo "We need Clonnezilla live iso to create such a recovery cd."
+#     echo "Downloadling the iso file from $iso_url_for_pxe_ocs_live..."
+#     wget $iso_url_for_pxe_ocs_live
+#     get_iso_rc=$?
+#     # validate it
+#     if [ "$get_iso_rc" -eq 0 ]; then
+#       echo -n "Validating $clonezilla_iso_fname... "
+#       md5_tmp="$(mktemp -d /tmp/isomd5.XXXXXX)"
+#       #  wget http://free.nchc.org.tw/clonezilla-live/stable/MD5SUMS
+#       echo -n "Downloading $md5_file_url... "
+#       wget $wget_opt -P "$md5_tmp" $md5_file_url
+#       if ! grep -w "$clonezilla_iso_fname" $md5_tmp/$md5_file | md5sum -c; then
+#         [ "$BOOTUP" = "color" ] && $SETCOLOR_FAILURE
+#         echo "$DEBIAN_ISO is broken! Try to remove $clonezilla_iso_fname and run this program again."
+#         [ "$BOOTUP" = "color" ] && $SETCOLOR_NORMAL
+#         echo "$msg_program_stop"
+#         exit 1
+#       fi
+#       # Rename it to the template iso file name (fixed name)
+#       mv -f $clonezilla_iso_fname $DEBIAN_ISO
+#     else
+#       [ "$BOOTUP" = "color" ] && $SETCOLOR_FAILURE
+#       echo "Unable to download $iso_url_for_pxe_ocs_live!"
+#       [ "$BOOTUP" = "color" ] && $SETCOLOR_NORMAL
+#       echo "$msg_program_stop"
+#       exit 1
+#     fi
+#   else
+#     echo "A template iso ($DEBIAN_ISO) was found!"
+#   fi
+# fi
 
 allow_limited_size_flag=""
 if [ "$insert_mode" = "prog_and_img" ]; then
@@ -471,7 +474,7 @@ boot_menu_opt="--version-no $iso_label_tag"
 if [ -n "$target_iso_prefix" ]; then
   target_iso="${target_iso_prefix}.iso"
 else
-  target_iso="clonezilla-live-${iso_label_tag}.iso"
+  target_iso="clonewar-${iso_label_tag}.iso" ##GDMS## Changed from clonezilla-live-${iso_label_tag}.iso
 fi
 echo "The output file name is: $target_iso."
 
@@ -841,19 +844,23 @@ if [ -n "$ocs_image" ]; then
   # For isolinux
   if [ "$cpu_arch_type" = "x86" ]; then
     # Dir syslinux only for x86 CPU arch
-    ocs-live-boot-menu -j -vb $splash_switch $quiet_switch $ocs_live_boot_menu_option -l $lang_answer -f $VGA_MODE_DEF -b $bg_mode -k /$sys_files_dir/$krnfile -i /$sys_files_dir/$irdfile -m $ocs_logo_img_png $boot_menu_opt --boot-param "$boot_param $live_extra_boot_param $supp_boot_param_ocs_live_iso locales=$ocs_lang keyboard-layouts=$ocs_live_keymap ocs_live_run=\"$ocs_live_run\" ocs_live_extra_param=\"$ocs_live_extra_param\" ocs_live_batch=\"$ocs_live_batch\"" --title "clonezilla live with img $ocs_image" --toram-mode live -r "* Boot menu for BIOS machine" isolinux $ISOSYSLNX_TMP/syslinux/
+    ##GDMS## changed option --title "clonezilla live with img $ocs_image" to --title "Clonewar with img $ocs_image"
+    ocs-live-boot-menu -j -vb $splash_switch $quiet_switch $ocs_live_boot_menu_option -l $lang_answer -f $VGA_MODE_DEF -b $bg_mode -k /$sys_files_dir/$krnfile -i /$sys_files_dir/$irdfile -m $ocs_logo_img_png $boot_menu_opt --boot-param "$boot_param $live_extra_boot_param $supp_boot_param_ocs_live_iso locales=$ocs_lang keyboard-layouts=$ocs_live_keymap ocs_live_run=\"$ocs_live_run\" ocs_live_extra_param=\"$ocs_live_extra_param\" ocs_live_batch=\"$ocs_live_batch\"" --title "Clonewar with img $ocs_image" --toram-mode live -r "* Boot menu for BIOS machine" isolinux $ISOSYSLNX_TMP/syslinux/
     # For syslinux
-    ocs-live-boot-menu -j -vb $splash_switch $quiet_switch $ocs_live_boot_menu_option -l $lang_answer -f $VGA_MODE_DEF -b $bg_mode -k /$sys_files_dir/$krnfile -i /$sys_files_dir/$irdfile -m $ocs_logo_img_png $boot_menu_opt --boot-param "$boot_param $live_extra_boot_param $supp_boot_param_ocs_live_dev locales=$ocs_lang keyboard-layouts=$ocs_live_keymap ocs_live_run=\"$ocs_live_run\" ocs_live_extra_param=\"$ocs_live_extra_param\" ocs_live_batch=\"$ocs_live_batch\"" --title "clonezilla live with img $ocs_image" --toram-mode live -r "* Boot menu for BIOS machine" syslinux $ISOSYSLNX_TMP/syslinux/
+    ##GDMS## changed option --title "clonezilla live with img $ocs_image" to --title "Clonewar with img $ocs_image"
+    ocs-live-boot-menu -j -vb $splash_switch $quiet_switch $ocs_live_boot_menu_option -l $lang_answer -f $VGA_MODE_DEF -b $bg_mode -k /$sys_files_dir/$krnfile -i /$sys_files_dir/$irdfile -m $ocs_logo_img_png $boot_menu_opt --boot-param "$boot_param $live_extra_boot_param $supp_boot_param_ocs_live_dev locales=$ocs_lang keyboard-layouts=$ocs_live_keymap ocs_live_run=\"$ocs_live_run\" ocs_live_extra_param=\"$ocs_live_extra_param\" ocs_live_batch=\"$ocs_live_batch\"" --title "Clonewar with img $ocs_image" --toram-mode live -r "* Boot menu for BIOS machine" syslinux $ISOSYSLNX_TMP/syslinux/
   fi
   # Dir /EFI/boot/ is for x86, arm64 or armhf CPU arch
   # For EFI, grub2 efi or syslinux efi
   if [ "$live_efi_boot_loader" = "grub" ]; then
     if [ -e "$ISOSYSLNX_TMP/EFI/boot/bootia32.efi" -o -e "$ISOSYSLNX_TMP/EFI/boot/bootx64.efi" -o \
 	 -e "$ISOSYSLNX_TMP/EFI/boot/bootaa64.efi" -o -e "$ISOSYSLNX_TMP/EFI/boot/bootarm.efi" ]; then
-      ocs-live-boot-menu -j -vb $splash_switch $quiet_switch $ocs_live_boot_menu_option -l $lang_answer -f $VGA_MODE_DEF -b $bg_mode -k /$sys_files_dir/$krnfile -i /$sys_files_dir/$irdfile -m $ocs_logo_grub2_img_png $boot_menu_opt --boot-param "$boot_param $live_extra_boot_param $supp_boot_param_ocs_live_iso locales=$ocs_lang keyboard-layouts=$ocs_live_keymap ocs_live_run=\"$ocs_live_run\" ocs_live_extra_param=\"$ocs_live_extra_param\" ocs_live_batch=\"$ocs_live_batch\"" --title "clonezilla live with img $ocs_image" --toram-mode live -r "* Boot menu for EFI machine" grub2-efi $ISOSYSLNX_TMP/boot/grub/
+      ##GDMS## changed option --title "clonezilla live with img $ocs_image" to --title "Clonewar with img $ocs_image"
+      ocs-live-boot-menu -j -vb $splash_switch $quiet_switch $ocs_live_boot_menu_option -l $lang_answer -f $VGA_MODE_DEF -b $bg_mode -k /$sys_files_dir/$krnfile -i /$sys_files_dir/$irdfile -m $ocs_logo_grub2_img_png $boot_menu_opt --boot-param "$boot_param $live_extra_boot_param $supp_boot_param_ocs_live_iso locales=$ocs_lang keyboard-layouts=$ocs_live_keymap ocs_live_run=\"$ocs_live_run\" ocs_live_extra_param=\"$ocs_live_extra_param\" ocs_live_batch=\"$ocs_live_batch\"" --title "Clonewar with img $ocs_image" --toram-mode live -r "* Boot menu for EFI machine" grub2-efi $ISOSYSLNX_TMP/boot/grub/
     fi
   elif [ "$live_efi_boot_loader" = "syslinux" ]; then
-    ocs-live-boot-menu -j -vb $splash_switch $quiet_switch $ocs_live_boot_menu_option -l $lang_answer -f $VGA_MODE_DEF -b $bg_mode -k /$sys_files_dir/$krnfile -i /$sys_files_dir/$irdfile -m $ocs_logo_img_png $boot_menu_opt --boot-param "$boot_param $live_extra_boot_param $supp_boot_param_ocs_live_iso locales=$ocs_lang keyboard-layouts=$ocs_live_keymap ocs_live_run=\"$ocs_live_run\" ocs_live_extra_param=\"$ocs_live_extra_param\" ocs_live_batch=\"$ocs_live_batch\"" --title "clonezilla live with img $ocs_image" --toram-mode live -r "* Boot menu for EFI machine" syslinux $ISOSYSLNX_TMP/boot/grub/
+    ##GDMS## changed option --title "clonezilla live with img $ocs_image" to --title "Clonewar with img $ocs_image"
+    ocs-live-boot-menu -j -vb $splash_switch $quiet_switch $ocs_live_boot_menu_option -l $lang_answer -f $VGA_MODE_DEF -b $bg_mode -k /$sys_files_dir/$krnfile -i /$sys_files_dir/$irdfile -m $ocs_logo_img_png $boot_menu_opt --boot-param "$boot_param $live_extra_boot_param $supp_boot_param_ocs_live_iso locales=$ocs_lang keyboard-layouts=$ocs_live_keymap ocs_live_run=\"$ocs_live_run\" ocs_live_extra_param=\"$ocs_live_extra_param\" ocs_live_batch=\"$ocs_live_batch\"" --title "Clonewar with img $ocs_image" --toram-mode live -r "* Boot menu for EFI machine" syslinux $ISOSYSLNX_TMP/boot/grub/
   fi
 else
   # No image is included
@@ -899,8 +906,8 @@ fi
 
 # put version tag
 # The content is like clonezilla-live-20070308
-echo "clonezilla-live-${iso_label_tag}" > $ISOSYSLNX_TMP/Clonezilla-Live-Version
-echo "This Clonezilla live iso file was created by this command:" >> $ISOSYSLNX_TMP/Clonezilla-Live-Version
+echo "clonewar-${iso_label_tag}" > $ISOSYSLNX_TMP/Clonezilla-Live-Version ##GDMS## CHanged from "clonezilla-live-${iso_label_tag}"
+echo "This Clonewar iso file was created by this command:" >> $ISOSYSLNX_TMP/Clonezilla-Live-Version
 echo "$prog $prog_option" >> $ISOSYSLNX_TMP/Clonezilla-Live-Version
 # Copy another one in the live dir. It will be used for toram=live mode.
 cp -a $ISOSYSLNX_TMP/Clonezilla-Live-Version $ISOSYSLNX_TMP/$sys_files_dir/
@@ -959,11 +966,14 @@ if [ -d "$ISOSYSLNX_TMP/syslinux/" -o -d "$ISOSYSLNX_TMP/isolinux/" ]; then
 fi
 
 # Make iso file
+##GDMS## changed -A "Clonezilla Live CD" to -A "GDMS Clonewar CD"
+##GDNS## changed  -publisher "DRBL/Clonezilla https://drbl.org https://clonezilla.org"  to -publisher "General Dynaics Mission Systems Canada"
+ 
 xorriso \
  -as mkisofs -R -r -J -joliet-long -l -cache-inodes -iso-level 3 \
  -isohybrid-mbr /usr/lib/ISOLINUX/isohdpfx.bin -partition_offset 16 \
- -A "Clonezilla live CD" \
- -publisher "DRBL/Clonezilla https://drbl.org https://clonezilla.org" \
+ -A "GDMS Clonewar CD" \
+ -publisher "General Dynaics Mission Systems Canada" \
  -V "$iso_label_tag" \
  $xorriso_syslinux_related_opt \
  -no-emul-boot -boot-load-size 4 -boot-info-table \

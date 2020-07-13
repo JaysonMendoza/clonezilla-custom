@@ -814,9 +814,10 @@ create_clonezilla_live_recovery_iso_zip() {
            ;;
     esac
     ASK_DEV_NAME=1
+    ##GDMS## $dev_preset changed to ask_user after inputbox 0 0 
     while [ "$ASK_DEV_NAME" -ne 0 ]; do
       $DIA --backtitle "$msg_nchc_free_software_labs" --title "$msg_nchc_clonezilla | $msg_mode: $ocs_mode_prompt" \
-      --inputbox "$dev_prompt_and_example" 0 0 "$dev_preset" 2> $REC_TMP
+      --inputbox "$dev_prompt_and_example" 0 0 "ask_user" 2> $REC_TMP
       rec_dev_name="$(cat $REC_TMP)"
       if [ -z "$rec_dev_name" ]; then
         $DIA --backtitle "$msg_nchc_free_software_labs" --title "$msg_nchc_clonezilla" \
@@ -888,52 +889,60 @@ create_clonezilla_live_recovery_iso_zip() {
     # Ex:ocs-iso -g en -t -k NONE -e "-b -c restoredisk sarge-r5 hda" sarge-r5
     #    ocs-live-dev -c -g en -t -k NONE -e "-b -c restoredisk sarge-r5 hda" sarge-r5
     ## This block will inform the user the exact command that could be used next time to repeat this process, then calls that exact command.
+    ##GDMS## Made changes to this case statement options in order to use dark theme for MBR boot menu.
     (cd $ocsroot
     case "$rec_file_type" in
        iso)
           run_again_fname="/tmp/ocs-iso-zip-`date +%F-%H-%M`"
           [ "$BOOTUP" = "color" ] && $SETCOLOR_SUCCESS
           echo PS. $msg_run_drbl_ocs_again_cmd | tee --append ${OCS_LOGFILE}
-          echo ocs-iso -g $rec_lang -t -k $rec_keymap_file -e \"$OCS_OPTS $rec_dev_action $target_dir $rec_dev_name\" $target_dir >> ${OCS_LOGFILE}
-          echo ocs-iso -g $rec_lang -t -k $rec_keymap_file -e \"$OCS_OPTS $rec_dev_action $target_dir $rec_dev_name\" $target_dir | tee $run_again_fname
+          ##GDMS## Added " -n \"d\" "
+          echo ocs-iso -n \"d\" -g $rec_lang -t -k $rec_keymap_file -e \"$OCS_OPTS $rec_dev_action $target_dir $rec_dev_name\" $target_dir >> ${OCS_LOGFILE}
+          echo ocs-iso -n \"d\" -g $rec_lang -t -k $rec_keymap_file -e \"$OCS_OPTS $rec_dev_action $target_dir $rec_dev_name\" $target_dir | tee $run_again_fname
 	  [ -e "$run_again_fname" ] && chmod 755 $run_again_fname
           echo "$msg_ocs_sr_again_command_saved_filename: $run_again_fname"
 	  echo "$msg_the_output_file_is_in_dir: $ocsroot"
           [ "$BOOTUP" = "color" ] && $SETCOLOR_NORMAL
           echo -n "$msg_press_enter_to_continue"
           read 
-          ocs-iso -g $rec_lang -t -k $rec_keymap_file -e "$OCS_OPTS $rec_dev_action $target_dir $rec_dev_name" $target_dir 
+          ##GDMS## Added " -n "d" "
+          ocs-iso -n "d" -g $rec_lang -t -k $rec_keymap_file -e "$OCS_OPTS $rec_dev_action $target_dir $rec_dev_name" $target_dir 
           ;;
        zip)
           run_again_fname="/tmp/ocs-iso-zip-`date +%F-%H-%M`"
           [ "$BOOTUP" = "color" ] && $SETCOLOR_SUCCESS
           echo PS. $msg_run_drbl_ocs_again_cmd | tee --append ${OCS_LOGFILE}
-          echo ocs-live-dev -c -g $rec_lang -t -k $rec_keymap_file -e \"$OCS_OPTS $rec_dev_action $target_dir $rec_dev_name\" $target_dir >> ${OCS_LOGFILE} 
-          echo ocs-live-dev -c -g $rec_lang -t -k $rec_keymap_file -e \"$OCS_OPTS $rec_dev_action $target_dir $rec_dev_name\" $target_dir | tee $run_again_fname
+          ##GDMS## Added " -n \"d\" "
+          echo ocs-live-dev -n \"d\" -c -g $rec_lang -t -k $rec_keymap_file -e \"$OCS_OPTS $rec_dev_action $target_dir $rec_dev_name\" $target_dir >> ${OCS_LOGFILE} 
+          echo ocs-live-dev -n \"d\" -c -g $rec_lang -t -k $rec_keymap_file -e \"$OCS_OPTS $rec_dev_action $target_dir $rec_dev_name\" $target_dir | tee $run_again_fname
 	  [ -e "$run_again_fname" ] && chmod 755 $run_again_fname
           echo "$msg_ocs_sr_again_command_saved_filename: $run_again_fname"
 	  echo "$msg_the_output_file_is_in_dir: $ocsroot"
           [ "$BOOTUP" = "color" ] && $SETCOLOR_NORMAL
           echo -n "$msg_press_enter_to_continue"
           read 
-          ocs-live-dev -c -g $rec_lang -t -k $rec_keymap_file -e "$OCS_OPTS $rec_dev_action $target_dir $rec_dev_name" $target_dir 
+          ##GDMS## Added " -n "d" "
+          ocs-live-dev -n "d" -c -g $rec_lang -t -k $rec_keymap_file -e "$OCS_OPTS $rec_dev_action $target_dir $rec_dev_name" $target_dir 
           ;;
        both)
           run_again_fname="/tmp/ocs-iso-zip-`date +%F-%H-%M`"
           [ "$BOOTUP" = "color" ] && $SETCOLOR_SUCCESS
           echo PS. $msg_run_drbl_ocs_again_cmd | tee --append ${OCS_LOGFILE}
-          echo ocs-iso -g $rec_lang -t -k $rec_keymap_file -e \"$OCS_OPTS $rec_dev_action $target_dir $rec_dev_name\" $target_dir >> ${OCS_LOGFILE}
-          echo ocs-iso -g $rec_lang -t -k $rec_keymap_file -e \"$OCS_OPTS $rec_dev_action $target_dir $rec_dev_name\" $target_dir | tee $run_again_fname
-          echo ocs-live-dev -c -g $rec_lang -t -k $rec_keymap_file -e \"$OCS_OPTS $rec_dev_action $target_dir $rec_dev_name\" $target_dir >> ${OCS_LOGFILE}
-          echo ocs-live-dev -c -g $rec_lang -t -k $rec_keymap_file -e \"$OCS_OPTS $rec_dev_action $target_dir $rec_dev_name\" $target_dir | tee -a $run_again_fname
+          ##GDMS## Added " -n \"d\" "
+          echo ocs-iso -n \"d\" -g $rec_lang -t -k $rec_keymap_file -e \"$OCS_OPTS $rec_dev_action $target_dir $rec_dev_name\" $target_dir >> ${OCS_LOGFILE}
+          echo ocs-iso -n \"d\" -g $rec_lang -t -k $rec_keymap_file -e \"$OCS_OPTS $rec_dev_action $target_dir $rec_dev_name\" $target_dir | tee $run_again_fname
+          echo ocs-live-dev -n \"d\" -c -g $rec_lang -t -k $rec_keymap_file -e \"$OCS_OPTS $rec_dev_action $target_dir $rec_dev_name\" $target_dir >> ${OCS_LOGFILE}
+          echo ocs-live-dev -n \"d\" -c -g $rec_lang -t -k $rec_keymap_file -e \"$OCS_OPTS $rec_dev_action $target_dir $rec_dev_name\" $target_dir | tee -a $run_again_fname
 	  [ -e "$run_again_fname" ] && chmod 755 $run_again_fname
           echo "$msg_ocs_sr_again_command_saved_filename: $run_again_fname"
 	  echo "$msg_the_output_file_is_in_dir: $ocsroot"
           [ "$BOOTUP" = "color" ] && $SETCOLOR_NORMAL
           echo -n "$msg_press_enter_to_continue"
-          read 
-          ocs-iso -g $rec_lang -t -k $rec_keymap_file -e "$OCS_OPTS $rec_dev_action $target_dir $rec_dev_name" $target_dir 
-          ocs-live-dev -c -g $rec_lang -t -k $rec_keymap_file -e "$OCS_OPTS $rec_dev_action $target_dir $rec_dev_name" $target_dir 
+          read
+          ##GDMS## Added " -n "d" " 
+          ocs-iso -n "d" -g $rec_lang -t -k $rec_keymap_file -e "$OCS_OPTS $rec_dev_action $target_dir $rec_dev_name" $target_dir 
+          ##GDMS## Added " -n "d" "
+          ocs-live-dev -n "d" -c -g $rec_lang -t -k $rec_keymap_file -e "$OCS_OPTS $rec_dev_action $target_dir $rec_dev_name" $target_dir 
           ;;
     esac
     )

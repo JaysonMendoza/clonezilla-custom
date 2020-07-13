@@ -20,7 +20,7 @@ TIMEOUT_DEF="300"
 OP_HD_DEV_GRUB_DEF="hd0"
 OP_PART_NO_GRUB_DEF="0"
 OUTPUT_DEV_GRUB_DEF="/dev/sda1"
-OUTPUT_TITLE_DEF="Clonezilla live"
+OUTPUT_TITLE_DEF="GDMS Clonewar" ##GDMS## was Clonezilla Live
 GPARTED_LIVE_MAINTAINER="Steven Shiau"
 # ocs_logo_img_png is loaded from drbl.conf
 BGIMG_FILE_DEF="$ocs_logo_img_png"
@@ -80,8 +80,20 @@ gen_config_syslinux() {
     isolinux) output_file="$output_dir/isolinux.cfg" ;;
     syslinux) output_file="$output_dir/syslinux.cfg" ;;
   esac
-  bg_img="$(basename $bgimg_file)"
+  bg_img="$(basename $bgimg_file)" ##GDMS## Modified in drbl.conf for GD version.
   echo "Adding $type menus for $output_title..."
+  ##GDMS## ORIGINAL
+#   # Created by generate-pxe-menu! Do NOT edit unless you know what you are doing! 
+# # Keep those comment "MENU DEFAULT" and "MENU HIDE"! Do NOT remove them.
+# # Note!!! If "serial" directive exists, it must be the first directive
+# default $MENUC32
+# timeout $timeout
+# prompt 0
+# noescape 1
+# MENU MARGIN 5
+# $mask MENU BACKGROUND $bg_img
+# # Set the color for unselected menu item and timout message
+
   cat <<-BOOT_MENU_END > $output_file
 # Created by generate-pxe-menu! Do NOT edit unless you know what you are doing! 
 # Keep those comment "MENU DEFAULT" and "MENU HIDE"! Do NOT remove them.
@@ -90,8 +102,10 @@ default $MENUC32
 timeout $timeout
 prompt 0
 noescape 1
+MENU RESOLUTION 800 600
 MENU MARGIN 5
 $mask MENU BACKGROUND $bg_img
+ MENU VSHIFT 5
 # Set the color for unselected menu item and timout message
 BOOT_MENU_END
 
@@ -394,7 +408,7 @@ if [ -e "$tmp_sys_files_path/$memtest_filename" -a -e "$tmp_sys_files_path/freed
   echo "MENU END" >> $output_file
 fi
 
-#
+
 if [ -e "$tmp_sys_files_path/eb.zli" ]; then
   cat <<-BOOT_MENU_END >> $output_file
 MENU BEGIN Network Boot
@@ -411,36 +425,38 @@ label etherboot
 
 BOOT_MENU_END
 fi
-if [ -e "$tmp_sys_files_path/gpxe.lkn" ]; then
-  cat <<-BOOT_MENU_END >> $output_file
-label gPXE
-  # MENU DEFAULT
-  # MENU HIDE
-  MENU LABEL Network boot via gPXE
-  # MENU PASSWD
-  kernel $sys_files_dir/gpxe.lkn
-  TEXT HELP
-  Run gPXE to enable network (PXE) boot
-  ENDTEXT
 
-MENU END
-BOOT_MENU_END
-fi
-if [ -e "$tmp_sys_files_path/ipxe.lkn" ]; then
-  cat <<-BOOT_MENU_END >> $output_file
-label iPXE
-  # MENU DEFAULT
-  # MENU HIDE
-  MENU LABEL Network boot via iPXE
-  # MENU PASSWD
-  kernel $sys_files_dir/ipxe.lkn
-  TEXT HELP
-  Run iPXE to enable network (PXE) boot
-  ENDTEXT
+##GDMS## Removed IPXE boot options
+# if [ -e "$tmp_sys_files_path/gpxe.lkn" ]; then
+#   cat <<-BOOT_MENU_END >> $output_file
+# label gPXE
+#   # MENU DEFAULT
+#   # MENU HIDE
+#   MENU LABEL Network boot via gPXE
+#   # MENU PASSWD
+#   kernel $sys_files_dir/gpxe.lkn
+#   TEXT HELP
+#   Run gPXE to enable network (PXE) boot
+#   ENDTEXT
 
-MENU END
-BOOT_MENU_END
-fi
+# MENU END
+# BOOT_MENU_END
+# fi
+# if [ -e "$tmp_sys_files_path/ipxe.lkn" ]; then
+#   cat <<-BOOT_MENU_END >> $output_file
+# label iPXE
+#   # MENU DEFAULT
+#   # MENU HIDE
+#   MENU LABEL Network boot via iPXE
+#   # MENU PASSWD
+#   kernel $sys_files_dir/ipxe.lkn
+#   TEXT HELP
+#   Run iPXE to enable network (PXE) boot
+#   ENDTEXT
+
+# MENU END
+# BOOT_MENU_END
+# fi
 } # end of gen_config_syslinux
 #
 gen_config_grub_1(){
@@ -455,7 +471,7 @@ gen_config_grub_1(){
   cat <<-BOOT_MENU_END > $output_file
 default	0
 timeout $timeout_sec
-color cyan/blue white/blue
+color white/black yellow/black
 splashimage=/boot/grub/$bg_img
 # since no network setting in the squashfs image, therefore if ip= net.ifnames=0, the network is disabled.
 
@@ -566,6 +582,7 @@ title FreeDOS
   initrd $sys_files_dir/freedos.img
 
 BOOT_MENU_END
+
 fi
 if [ -e "$tmp_sys_files_path/eb.zli" ]; then
   cat <<-BOOT_MENU_END >> $output_file
@@ -573,18 +590,20 @@ title etherboot
   kernel $sys_files_dir/eb.zli
 BOOT_MENU_END
 fi
-if [ -e "$tmp_sys_files_path/gpxe.lkn" ]; then
-  cat <<-BOOT_MENU_END >> $output_file
-title gPXE
-  kernel $sys_files_dir/gpxe.lkn
-BOOT_MENU_END
-fi
-if [ -e "$tmp_sys_files_path/ipxe.lkn" ]; then
-  cat <<-BOOT_MENU_END >> $output_file
-title iPXE
-  kernel $sys_files_dir/ipxe.lkn
-BOOT_MENU_END
-fi
+
+##GDMS## Removed IPXE boot option
+# if [ -e "$tmp_sys_files_path/gpxe.lkn" ]; then
+#   cat <<-BOOT_MENU_END >> $output_file
+# title gPXE
+#   kernel $sys_files_dir/gpxe.lkn
+# BOOT_MENU_END
+# fi
+# if [ -e "$tmp_sys_files_path/ipxe.lkn" ]; then
+#   cat <<-BOOT_MENU_END >> $output_file
+# title iPXE
+#   kernel $sys_files_dir/ipxe.lkn
+# BOOT_MENU_END
+# fi
   [ "$BOOTUP" = "color" ] && $SETCOLOR_WARNING
   echo "$msg_modify_grub_config_if_necessary:"
   echo "$msg_delimiter_star_line"
@@ -625,8 +644,8 @@ set hidden_timeout_quiet=false
 
 insmod png
 if background_image \$pref/$bg_img; then
-  set color_normal=black/black
-  set color_highlight=magenta/black
+  set color_normal=white/black
+  set color_highlight=white/black
 else
   set color_normal=cyan/blue
   set color_highlight=white/blue
@@ -799,6 +818,7 @@ if [ -e "$tmp_sys_files_path/freedos.img" ]; then
 
 BOOT_MENU_END
 fi
+
 if [ -e "$tmp_sys_files_path/eb.zli" ]; then
   cat <<-BOOT_MENU_END >> $output_file
 #menuentry "etherboot"{
@@ -808,24 +828,26 @@ if [ -e "$tmp_sys_files_path/eb.zli" ]; then
 
 BOOT_MENU_END
 fi
-if [ -e "$tmp_sys_files_path/gpxe.lkn" ]; then
-  cat <<-BOOT_MENU_END >> $output_file
-#menuentry "gPXE" {
-#  search --set -f $sys_files_dir/gpxe.lkn
-#  linux16 $sys_files_dir/gpxe.lkn
-#}
 
-BOOT_MENU_END
-fi
-if [ -e "$tmp_sys_files_path/ipxe.efi" ]; then
-  cat <<-BOOT_MENU_END >> $output_file
-menuentry "Network boot via iPXE" {
-  search --no-floppy --set=root -f $sys_files_dir/ipxe.efi
-  chainloader $sys_files_dir/ipxe.efi + 1
-}
+##GDMS## Disabled Ethernet and IPXE boot options
+# if [ -e "$tmp_sys_files_path/gpxe.lkn" ]; then
+#   cat <<-BOOT_MENU_END >> $output_file
+# #menuentry "gPXE" {
+# #  search --set -f $sys_files_dir/gpxe.lkn
+# #  linux16 $sys_files_dir/gpxe.lkn
+# #}
 
-BOOT_MENU_END
-fi
+# BOOT_MENU_END
+# fi
+# if [ -e "$tmp_sys_files_path/ipxe.efi" ]; then
+#   cat <<-BOOT_MENU_END >> $output_file
+# menuentry "Network boot via iPXE" {
+#   search --no-floppy --set=root -f $sys_files_dir/ipxe.efi
+#   chainloader $sys_files_dir/ipxe.efi + 1
+# }
+
+# BOOT_MENU_END
+# fi
 #
 cat <<-BOOT_MENU_END >> $output_file
 menuentry 'uEFI firmware setup' 'uefi-firmware' {
@@ -845,6 +867,8 @@ menuentry "$output_title $version_no info"{
 
 BOOT_MENU_END
 } # end of gen_config_grub_2_efi
+
+##GDMS## Example for restoredisks will call this script from ocs-iso with params "-g auto -e1 -e2 -r -j2 -c -p choose restoredisk deletiontest sdc
 
 ################
 ##### MAIN #####
@@ -1079,27 +1103,34 @@ boot_param_rm_nomodeset="$(echo $boot_param | sed -r -e "s/[[:space:]]*nomodeset
 
 #
 now_year="$(LC_ALL=C date +%Y)"
-if [ -n "$(echo $output_title | grep -i clonezilla)" ]; then
-  boot_menu_txt_say_pkg="Clonezilla, the OpenSource Clone System."
-  boot_menu_txt_say_org="NCHC Free Software Labs, Taiwan."
-  project_url="clonezilla.org, clonezilla.nchc.org.tw"
-  boot_menu_pkg_ver_cpright="* Clonezilla live version: $version_no. (C) 2003-${now_year}, NCHC, Taiwan"
-  boot_menu_pkg_disclaimer="* Disclaimer: Clonezilla comes with ABSOLUTELY NO WARRANTY"
-elif [ -n "$(echo $output_title | grep -i drbl)" ]; then
-  boot_menu_txt_say_pkg="DRBL (Diskless Remote Boot in Linux)."
-  boot_menu_txt_say_org="NCHC Free Software Labs, Taiwan."
-  project_url="drbl.sourceforge.net, drbl.nchc.org.tw"
-  boot_menu_pkg_ver_cpright="* DRBL live version: $version_no. (C) 2003-${now_year}, NCHC, Taiwan"
-  boot_menu_pkg_disclaimer="* Disclaimer: DRBL comes with ABSOLUTELY NO WARRANTY"
-elif [ -n "$(echo $output_title | grep -i gparted)" ]; then
-  boot_menu_txt_say_pkg="GParted."
-  boot_menu_txt_say_org="Gnome Partition Editor."
-  project_url="https://gparted.org"
-  boot_menu_pkg_ver_cpright="* GParted live version: $version_no. Live version maintainer: $GPARTED_LIVE_MAINTAINER"
-  boot_menu_pkg_disclaimer="* Disclaimer: GParted live comes with ABSOLUTELY NO WARRANTY"
-else
-  project_url="Welcome!"
-fi
+##GDMS## Edit out this switch because we only support a Clonewar restorable image now.
+# if [ -n "$(echo $output_title | grep -i clonezilla)" ]; then
+#   boot_menu_txt_say_pkg="Clonezilla, the OpenSource Clone System."
+#   boot_menu_txt_say_org="NCHC Free Software Labs, Taiwan."
+#   project_url="clonezilla.org, clonezilla.nchc.org.tw"
+#   boot_menu_pkg_ver_cpright="* Clonezilla live version: $version_no. (C) 2003-${now_year}, NCHC, Taiwan"
+#   boot_menu_pkg_disclaimer="* Disclaimer: Clonezilla comes with ABSOLUTELY NO WARRANTY"
+# elif [ -n "$(echo $output_title | grep -i drbl)" ]; then
+#   boot_menu_txt_say_pkg="DRBL (Diskless Remote Boot in Linux)."
+#   boot_menu_txt_say_org="NCHC Free Software Labs, Taiwan."
+#   project_url="drbl.sourceforge.net, drbl.nchc.org.tw"
+#   boot_menu_pkg_ver_cpright="* DRBL live version: $version_no. (C) 2003-${now_year}, NCHC, Taiwan"
+#   boot_menu_pkg_disclaimer="* Disclaimer: DRBL comes with ABSOLUTELY NO WARRANTY"
+# elif [ -n "$(echo $output_title | grep -i gparted)" ]; then
+#   boot_menu_txt_say_pkg="GParted."
+#   boot_menu_txt_say_org="Gnome Partition Editor."
+#   project_url="https://gparted.org"
+#   boot_menu_pkg_ver_cpright="* GParted live version: $version_no. Live version maintainer: $GPARTED_LIVE_MAINTAINER"
+#   boot_menu_pkg_disclaimer="* Disclaimer: GParted live comes with ABSOLUTELY NO WARRANTY"
+# else
+#   project_url="Welcome!"
+# fi
+
+boot_menu_txt_say_pkg="Clonewar, the OpenSource Clone System based on Clonezilla."
+boot_menu_txt_say_org="General Dynamics Mission Systems"
+project_url=""
+boot_menu_pkg_ver_cpright="* Based on Clonezilla live version: $version_no. (C) 2003-${now_year}, NCHC, Taiwan"
+boot_menu_pkg_disclaimer="* Disclaimer: Clonewar and Clonezilla come with ABSOLUTELY NO WARRANTY"
 #
 # Now we put other boot image files, like etherboot, fdos and memtest in the same dir with kernel and initrd. Therefore using $sys_files_dir (Ex: /casper, /live). This is used for the config file of boot manager (grub, syslinux).
 sys_files_dir="$(dirname $kernel_file)"
@@ -1180,7 +1211,7 @@ case "$output_format" in
    syslinux|SYSLINUX)
       gen_config_syslinux syslinux ;;
    grub|GRUB)
-      gen_config_grub_1 menu.lst ;;
+      gen_config_grub_1 menu.lst menu.lst ;;
    grub2-efi|GRUB2-EFI|grub2-efi-ia32|GRUB2-EFI-IA32|grub2-efi-x64|GRUB2-EFI-X64)
       # For grub2, no matter it's ia32 or x86-64, the config file is grub.cfg.
       gen_config_grub_2_efi grub.cfg ;;
