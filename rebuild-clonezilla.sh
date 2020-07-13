@@ -39,6 +39,7 @@ declare cpFlags="" ##This contains all the option flags that will be passed to t
 declare overwriteList="/home/drazev/overwritelist.txt" ##TEST CODE, creates a list to map out all files being transfered.
 declare pauseFlag="" #This flag when set will pause the script after everything is copied but before the rebuild begins. This allows for manuel modifications to the filesystem by the user.
 declare zipFlag="" # This flag controls if a zip file will be created.
+declare isBashWithColorSupport="" #Flag is set when bash can support more than 8 colors.
 
 ######################################################################################
 ##                                  Function Definitions                            ##
@@ -80,14 +81,13 @@ INIT() {
     # This code is from makeboot.sh from which this file is dependent.
     colors_no="$(LC_ALL=C tput colors 2>/dev/null)"
 
-    BOOTUP=""
     if [ -n "$colors_no" ]; then
         if [ "$colors_no" -ge 8 ]; then
             [ -z ${SETCOLOR_SUCCESS:-''} ] && SETCOLOR_SUCCESS="echo -en \\033[1;32m"
             [ -z ${SETCOLOR_FAILURE:-''} ] && SETCOLOR_FAILURE="echo -en \\033[1;31m"
             [ -z ${SETCOLOR_WARNING:-''} ] && SETCOLOR_WARNING="echo -en \\033[1;33m"
             [ -z ${SETCOLOR_NORMAL:-''}  ] && SETCOLOR_NORMAL="echo -en \\033[0;39m"
-            BOOTUP="color"
+            isBashWithColorSupport="color"
         fi
     fi
 
@@ -100,25 +100,56 @@ INIT() {
     #Check the filename and destination to see if it already exists and set default if not
     [ -z "$outFileName" ] && outFileName="$(date +%Y-%m-%d)clonewar-$id"
     logFile="$(realpath ~/$outFileName-build-log.txt)"
-    echo "Logfile created: $logFile" | tee $logFile
-    echo "Template to Modify: $targetFile" | tee -a $logFile
-    echo "Basename for output file: $outFileName" | tee -a $logFile
-    echo "Output Location: $outPath" | tee -a $logFile
-    echo "Source for Modifications: $src"| tee -a $logFile
-    echo "Temp Directory: $tmpDir"| tee -a $logFile.
-    [ -n "$zipFlag" ] && echo "Zip option selected, a zip file will be output at $outPath" | tee -a $logFile
+    messagePrompt "Logfile created: $logFile"
+    messagePrompt "Template to Modify: $targetFile"
+    messagePrompt "Basename for output file: $outFileName"
+    messagePrompt "Output Location: $outPath"
+    messagePrompt "Source for Modifications: $src"
+    messagePrompt "Temp Directory: $tmpDir"
+    [ -n "$zipFlag" ] && echo "Zip option selected, a zip file will be output at $outPath"
 }
 
-printDialogue() {
+#This function is the general interface for all messages and prompts. It supports text coloring
+#settings for bash terminals that support more than eight colors. It also wraps around the 
+#askUser prompt so that messages can preceed a prompt. It accepts multiple strings as messages,
+#and each message will be printed on a different line.
+#USAGE: messagePrompt [OPTIONS] MESSAGE_STRING1 MESSAGE_STRING2 MESSAGE_STRING3...MESSAGE_STRING_N
+#OPTIONS:
+#   -w) Warning Text color (yellow)
+#   -s) Success text color (Green)
+#   -f) Failure text color (Red)
+#   -p TEXT_STRING) Prompts user (yellow) with given TEXT_STRING message.
+#   -o TEXT_STRING) If a prompt was specified, this will modify the options the user can choose from.
+#                   The default is yes|no. If an option is specified, the result will be returned via
+#                   echo, and is intended to be captured in a variable with this command having been executed
+#                   in a subshell var=$(messagePrompt -o "CHOICES" -p "QUESTION" "MESSAGES")
+messagePrompt() {
+    local askUserMessage=""
+    local askUserMessageOptions=""
+    local madeChoice=""
+    local colorCommand=""
+
     while [ $# -gt 0 ]; do
+
         case "$1" in 
-            -w) $SETCOLOR_WARNING
+            -w) if [ -n "$isBashWithColorSupport" ]; then
+                    colorCommand="$SETCOLOR_WARNING"
+                fi
                 shift
                 ;;
-            -s) $SETCOLOR_SUCCESS
+            -s) [ -n "$isBashWithColorSupport" ] && colorCommand="$SETCOLOR_SUCCESS"
                 shift
                 ;;
-            -f) $SETCOLOR_FAILURE
+            -f) [ -n "$isBashWithColorSupport" ] && colorCommand="$SETCOLOR_FAILURE"
+                shift
+                ;;
+            -p) shift
+                askUserMessage="$1"
+                shift
+                ;;
+            -o) shift
+                askUserMessageOptions="$1"
+                madeChoice="yes"
                 shift
                 ;;
             -*) shift #Ignore
@@ -127,14 +158,74 @@ printDialogue() {
                 ;;
         esac
     done
-
     #print all messages
     while [ $# -gt 0 ]; do
+        echo "$1" >> $logFile #Write to logfile, but not console. This avoid's color codes.
+        [ -n "$isBashWithColorSupport" ] && $colorCommand
         echo "$1"
+        [ -n "$isBashWithColorSupport" ] && $SETCOLOR_NORMAL
         shift
     done
-    $SETCOLOR_NORMAL
-}
+    if [ -n "$askUserMessage" ]; then
+        if [ -n "$askUserMessageOptions" ]; then
+            echo "$(askUser -o "$askUserMessageOptions" "$askUserMessage")"
+            return 0
+        else
+            askUser "$askUserMessage"
+            return $?
+        fi
+    fi
+    return 0
+} #END messagePrompt
+
+#This function will handle user interactions. It supports a simple yes|no respones, or custom options.
+#If a custom option is set, it will be echo'd back by the function and should be captured into a variable
+#by using a subshell. However if only yes/no set the return code 0 for success means a yes was chosen, while
+#a 1 will mean a no was chosen.
+#The message will be printed in yellow if colors are supported in console in order to make the request stand out.
+#USAGE: askUser [OPTIONS] MESSAGE
+#OPTIONS:
+#   -o) This option specifies response options for the prompt. It accepts a single string, with spaces seperating
+#       each option. It does not support multi word options, each string must be continuous.
+askUser() {
+    local message=""
+    local responseList="yes no"
+    local choice=""
+    local customResponeFlag=""
+    while [ $# -gt 0 ]; do
+        case "$1" in 
+            -o) shift
+                responseList="$1"
+                customResponeFlag="yes"
+                shift
+                ;;
+            -*) shift #Ignore
+                ;;
+            *)  message="${message}${1}"
+                shift
+                ;;
+        esac
+    done
+    responseList="$(echo $responseList | tr '[:upper:]' '[:lower:]')"
+    
+    responseList=($responseList) #to Array
+    while [[ ! " ${responseList[@]} " =~ " $choice " ]]; do
+        if [ -n "$isBashWithColorSupport" ]; then
+            read -p $'\033[1;33m'"$message($(echo "${responseList[@]}" | sed "s/ /|/g")):"$'\033[0;39m ' choice
+        else
+            read -p "$message($(echo "${responseList[@]}" | sed "s/ /|/g")):" choice
+        fi
+
+        choice="$(echo $choice | sed "s|[[:upper:]]|[[:lower:]]|g")"
+    done
+    if [ -n "$customResponeFlag" ]; then
+        echo "$choice"
+        return 0
+    else
+        [ "$choice" == "no" ] && return 1
+    fi
+    return 0
+} #END askUser
 
 #Function that handles failures within the script. It will print approrpiate error messages, handle the error log, and then handle cleanup.
 #ARGUMENTS: This function signiture is FAILURE_EXIT [OPTIONS] MESSAGE1 MESSAGE2...
@@ -152,17 +243,17 @@ FAILURE_EXIT() {
                 ;;
             -*) shift
                 ;;
-            *)  echo $1 | tee -a $logFile
+            *)  messagePrompt -f "$1"
                 errorMsg=true
                 shift
                 ;;
         esac
     done
-    [ -z "$errorMsg" ] && echo "General Failure!" | tee -a $logFile
+    [ -z "$errorMsg" ] && messagePrompt -f "General Failure!"
     if [ -z "$printLog" ]; then
         rm -f $logFile
     else
-        echo "Please see logfile at $logFile for more details."
+        messagePrompt -w "Please see logfile at $logFile for more details."
         chown ${SUDO_USER:-${USER}}:${SUDO_USER:-${USER}} $logFile #Change ownership from root to user who called script.
     fi
     [ -n "$(df -h | grep "$tmpDir/iso")" ] && umount "$tmpDir/iso"
@@ -170,6 +261,16 @@ FAILURE_EXIT() {
     exit 1
 }
 
+#This function will take all files from a source directory and copy them into a target directory. It has two modes with the default
+#mode seeking any occurance of a source file in the target directory or it's subdirectories. The function can be further tuned to 
+#copy all files from one directory into another, or to limit the search depth of the subdirectories in the target location.
+#This function will illustrate the process with a series of messages, and verify the file transfer was successful.
+#USAGE: DIR_COPY [OPTIONS] SOURCE_PATH_STRING TARGET_PATH_STRING
+# The source path can be multiple paths seperated by space, but must be contained within one set of double quotes.
+#OPTIONS:
+#   -m INT) Depth setting. The search for matching files will not exceed the listed depth. Depth 1 will only look for matches in the targer folder.
+#   -d) Direct Copy. This mode will simply copy all source files to the target directory without looking for a match. This is what makes it different
+#       from -m 1 setting.
 DIR_COPY() {
     local findOpt="-type f" #Option flags for find
     local directCopy="" #Flag to trigger direct file copies from source directory to destination without searching for a match in the folder or subfolders.
@@ -202,14 +303,14 @@ DIR_COPY() {
     [ ! -d "$3" ] && FAILURE_EXIT -l "Syntax error, invalid arguments for function DIR_COPY(). Target directory must be a directory. Given: $3"
     destDir=$3
     
-    echo "Starting to copy files for $category..."
+    messagePrompt "Starting to copy files for $category..."
     for file in $srcDir; do
         local matchResults=""
         local numMatch=""
         local fileName=$(basename $file)
         [ -d "$file" ] && continue #skip directories
 
-        echo "---Processing $fileName from \"$srcDir\"..."| tee -a $logFile
+        messagePrompt "---Processing $fileName from \"$srcDir\"..."
         if [ -z "$directCopy" ]; then
             matchResults=$(find $destDir $findOpt -iname $fileName)
             numMatch=$(echo $matchResults | wc -w)
@@ -219,20 +320,20 @@ DIR_COPY() {
         fi
 
         if [ $numMatch -lt 1 ]; then
-            echo "******WARNING: No matches found for $fileName, Skipping"| tee -a $logFile
+            messagePrompt -w "******WARNING: No matches found for $fileName, Skipping"
             (( filesSkipped++ ))
             continue
         elif [ $numMatch -gt 1 ]; then
-            echo "******WARNING: $numMatch copies of $fileName found in source."| tee -a $logFile
+            messagePrompt -w "******WARNING: $numMatch copies of $fileName found in source."
         fi
         
         for swap in $matchResults; do
             local tarDir=$swap
             [ -d "$tarDir" ] && tarDir="$tarDir/$fileName"
-            echo "------Copying $fileName to $tarDir" | tee -a $logFile
+            messagePrompt "------Copying $fileName to $tarDir"
             cp $cpFlags $file $tarDir >> $logFile
             if [ -f "$tarDir" ]; then
-                echo "------Success!"| tee -a $logFile
+                messagePrompt "------Success!"
                 hasCopiedFiles="yes"
                 (( filesCopied++ ))
             else
@@ -243,16 +344,19 @@ DIR_COPY() {
     copyCount=$(( $filesCopied-$filesCopiedCountStart ))
 
     if [ $copyCount -gt 0 ]; then
-        echo "Finished copying $copyCount files for $category"| tee -a $logFile
+        messagePrompt -s "Finished copying $copyCount files for $category"
     else
-        echo "No files found to copy for $category."| tee -a $logFile
+        messagePrompt -w "No files found to copy for $category."
     fi
 }
 
+#This function will create a zip file containing the clonewar copy as it exists
+#in the temporary folder.
 MAKE_ZIP() {
-    echo "Creating ZIP file..." | tee -a $logFile
+    messagePrompt "Creating ZIP file..."
     outZipFile="$tmpDir/$outFileName.zip"
-    echo "Rebuilding contents for bootable usb into ZIP file." | tee -a $logFile
+    messagePrompt "Rebuilding contents for bootable usb into ZIP file."
+    mv "$tmpDir/zip/syslinux/isolinux.cfg" "$tmpDir/zip/syslinux/syslinux.cfg"
     [ -e $outZipFile ] && rm -f $outZipFile
     cd $tmpDir/zip
     zip -r $outZipFile * | tee -a $logFile
@@ -260,11 +364,13 @@ MAKE_ZIP() {
     chown ${SUDO_USER:-${USER}}:${SUDO_USER:-${USER}} $outZipFile #Change ownership from root to user who called script.
     mv $outZipFile $outPath
     [ $? -ne 0 ] && FAILURE_EXIT "Failed to copy $outZipFile to $outPath"
-    echo "ZIP file $outFileName.zip was created successfully!"
+    messagePrompt -s "ZIP file $outFileName.zip was created successfully!"
 }
 
+#This function will create a ISO file containing the clonewar copy as it exists
+#in the temporary folder.
 MAKE_ISO() {
-    echo "Creating ISO file..." | tee -a $logFile
+    messagePrompt "Creating ISO file..."
     outISOFile="$tmpDir/$outFileName.iso"
     cd $tmpDir/zip
     xorriso \
@@ -283,12 +389,11 @@ MAKE_ISO() {
     if [ ! -e "$outISOFile" ]; then
         FAILURE_EXIT -l "Failed to create final ISO file."
     else
-        echo "ISO successfully created."| tee -a $logFile
         chown ${SUDO_USER:-${USER}}:${SUDO_USER:-${USER}} $outISOFile
         mv $outISOFile $outPath
         [ $? -ne 0 ] && FAILURE_EXIT "Failed to copy $outISOFile to $outPath"
     fi
-    echo "Contents repackaged into bootable ISO  $outFileName.iso" | tee -a $logFile
+    messagePrompt -s "Contents repackaged into bootable ISO  $outFileName.iso"
 }
 
 # This function will search the target image for occurances of the listed files, and remove them.
@@ -307,7 +412,7 @@ SEEK_AND_REMOVE() {
                 ;;
             -f) #Use a file as the list of files to be removed
                 shift
-                echo "Processing file with deletions list: $1" | tee -a $logFile
+                messagePrompt -w "Processing file with deletions list: $1"
                 srcDir="$(cat $1 | tr '[:cntrl:]' ' ')" #replace control characters with spaces
                 [ -z "$srcDir" ] && FAILURE_EXIT -l "SEEK_AND_REMOVE() failure: Provided removal list is empty or cannot be read. File: $1"
                 echo "Done!" | tee -a $logFile
@@ -332,32 +437,32 @@ SEEK_AND_REMOVE() {
     fi
     category=$1
     srcDir=($srcDir) #convert to array
-    echo "Starting to remove $category from $tarDir in image..."
+    messagePrompt "Starting to remove $category from $tarDir in image..."
 
     for target in "${srcDir[@]}"; do
         local fileName=$(basename $target)
         local matchResults="$(find $tarDir $findOpt -iname "$fileName")"
-        echo "---Seeking $fileName in \"$tarDir\"..." | tee -a $logFile
+        messagePrompt "---Seeking $fileName in \"$tarDir\"..."
         if [ -z "$matchResults" ]; then
-            echo "------No match found!"
+            messagePrompt "------No match found!"
             continue
         fi
 
         for match in $matchResults; do
             if [ -f "$match" ]; then
-                echo "------Deleting $fileName from $match" | tee -a $logFile
+                messagePrompt "------Deleting $fileName from $match"
                 rm -f "$match"
                 [ $? -ne 0 ] && FAILURE_EXIT "SEEK_AND_REMOVE() failure: Unable to remove from image: $match"
-                echo "------Success!"| tee -a $logFile
+                messagePrompt "------Success!"
                 (( filesRemoved++ ))
             else
-                echo ">>>>>>Skipped: Not a regular file or is directory: $match <<"
+                messagePrompt -w ">>>>>>Skipped: Not a regular file or is directory: $match <<"
                 (( filesSkipped++ ))
             fi
         done
     done
     removeCount=$(( $filesRemoved-$filesRemovedCountStart ))
-    echo "Finished removing $removeCount files for $category from image."| tee -a $logFile
+    messagePrompt -s "Finished removing $removeCount files for $category from image."
 }
 
 ######################################################################################
@@ -366,6 +471,11 @@ SEEK_AND_REMOVE() {
 
 #First we process and remove all optoins from the buffer and check basic validity
 [ "$EUID" -ne 0 ] && FAILURE_EXIT "ERROR: This script must be run as root! Please run it again with sudo."
+
+#Next we initilize the program and setup a log file.
+INIT
+
+#PARSE COMMAND LINE
 while [ "$#" -gt 0 ]; do
     case "$1" in
         -o|--output)
@@ -379,7 +489,6 @@ while [ "$#" -gt 0 ]; do
                 [ ! -d "$outPath" ] && FAILURE_EXIT "The output directory $outPath does not exist or is not writable from the given output target $1"
                 #Strip away all extensions from filename
                 outfile="$(echo $outFile | sed -e "s|\..*||g")" #Remove the extension. You cannot use a . in the filename or it will consider it an extension.
-                echo "Your filename without extensions is: $outFileName"
             fi
             shift
             ;;
@@ -430,20 +539,17 @@ done
 [ -z "$1" ] && FAILURE_EXIT -u "ERROR: No target file was specified."
 trap 'FAILURE_EXIT -l "Process inturrupted by user!"' SIGINT ##Initiates failure on ctrl+c or shell exit.
 targetFile=$(realpath $1)
-echo "Set target file to $targetFile"
-
-#Next we initilize the program and setup a log file.
-INIT
+messagePrompt "Set target file to $targetFile"
 
 #Here we must determine what kind of target file was passed, and handle it in accordance to it's type.
 #We will depend on the file extension to determine this.
 echo ""
-echo "Detecting target file type by extension..." | tee -a $logFile
+messagePrompt "Detecting target file type by extension..."
 fileType="$(echo $targetFile | sed -e "s|.*\.||g")"
 fileType="$(echo $fileType | awk '{print tolower($0)}')"
 
 if [ "$fileType" == "iso" ]; then
-    echo "Extracting files from ISO..." | tee -a $logFile
+    messagePrompt "Extracting files from ISO..."
     mkdir "$tmpDir/iso"
     mount -o loop -o ro -t iso9660 "$targetFile" "$tmpDir/iso" && echo "ISO mounted successfully. Copying files to temporary directory..." | tee -a $logFile
     cp -r "$tmpDir/iso" "$tmpDir/zip"
@@ -451,16 +557,34 @@ if [ "$fileType" == "iso" ]; then
     if [ -z "$(ls $tmpDir/zip 2>&-)" ]; then
         FAILURE_EXIT -l "Failed to extra iso to temporary directory."
     else
-        echo "ISO extraction successful!"| tee -a $logFile
+        messagePrompt -s "ISO extraction successful!"
     fi
+
+     #Make sure there is both an isolinux.cfg and syslinux.cfg to support both options. 
+    #Since this is a ISO it was designed for ISO loading. It should have an isolinux.cfg
+    if [ -f "$tmpDir/zip/syslinux/isolinux.cfg" ]; then
+        cp "$tmpDir/zip/syslinux/isolinux.cfg" "$tmpDir/zip/syslinux/syslinux.cfg"
+    else
+        messagePrompt -w "WARNING: Critical file $tmpDir/zip/syslinux/isolinux.cfg is missing. This could affect boot loader menu."
+    fi
+
 elif [ "$fileType" == "zip" ]; then
-    echo "Unzipping contents into temporary directory."| tee -a $logFile
+    messagePrompt "Unzipping contents into temporary directory."
     unzip -q $targetFile -d $tmpDir/zip > >(tee -a $logFile) 2> >(tee -a $logFile >&2)
     if [ -z "$(ls $tmpDir/zip 2>&-)" ]; then
         FAILURE_EXIT -l "Failed to unzip to temporary directory." "Please make sure the file is in zip format."
     else
-        echo "Unzip successful!"| tee -a $logFile
+        messagePrompt -s "Unzip successful!"
     fi
+    
+    #Make sure there is both an isolinux.cfg and syslinux.cfg to support both options. 
+    #Since this is a zip it was designed for USB loading. It should have an syslinux.cfg
+    if [ -f "$tmpDir/zip/syslinux/syslinux.cfg" ]; then
+        cp "$tmpDir/zip/syslinux/syslinux.cfg" "$tmpDir/zip/syslinux/isolinux.cfg"
+    else
+        messagePrompt -w "WARNING: Critical file $tmpDir/zip/syslinux/syslinux.cfg is missing. This could affect boot loader menu."
+    fi
+
 else
     FAILURE_EXIT -u "ERROR: Invalid target file. Specified file type. Extensions supported \"iso\" or \"zip\"."
 fi
@@ -468,12 +592,12 @@ fi
 echo ""
 
 #Next we must extract the squash filesystem because it is the template operating system root directory that must be modified.
-echo "Extracting squashfs."| tee -a $logFile
+messagePrompt "Extracting squashfs."
 unsquashfs -d $tmpDir/root-squashfs $tmpDir/zip/live/filesystem.squashfs > >(tee -a $logFile) 2> >(tee -a $logFile >&2)
 if [ -z "$(ls $tmpDir/root-squashfs 2>&-)" ]; then
     FAILURE_EXIT -l "Failed to extract squashfs from system."
 else
-    echo "Squashfs successfully extracted"| tee -a $logFile
+    messagePrompt -s "Squashfs successfully extracted"
 fi
 
 echo ""
@@ -485,6 +609,8 @@ echo ""
 SEEK_AND_REMOVE "OCS Startup Scripts" "$src/setup/files/ocs/ocs-live.d/setup/files/ocs/ocs-live.d/S07arm-wol" "$tmpDir/root-squashfs/etc/ocs/"
 echo ""
 SEEK_AND_REMOVE "DRBL-OCS Sample Scripts" "$src/samples/*" "$tmpDir/root-squashfs/usr/share/drbl/samples/"
+echo ""
+SEEK_AND_REMOVE "Syslinux C32 Incompatible files" "$src/dependencies/syslinux/*.c32" "$tmpDir/zip/syslinux/"
 
 echo ""
 #Now we must compare the source files to the target directory. Some files such as GRUB will have duplicates so we narrow
@@ -498,34 +624,28 @@ DIR_COPY "STARTUP FILES" "$src/setup/files/ocs/ocs-live.d/* $src/setup/files/ocs
 echo ""
 DIR_COPY -d "GRUB2 FILES" "$src/dependencies/grub2/*" "$tmpDir/zip/boot/grub/"
 echo ""
-DIR_COPY -d "SYSLINUX FILES" "$src/dependencies/syslinux/*" "$tmpDir/zip/syslinux/"
+DIR_COPY -d "SYSLINUX FILES" "$src/dependencies/syslinux/*.c32 $src/dependencies/syslinux/gdmssplash.png $src/dependencies/syslinux/isolinux.cfg" "$tmpDir/zip/syslinux/"
 echo ""
 DIR_COPY -d "LANGUAGE FILES" "$src/lang/bash/*" "$tmpDir/root-squashfs/usr/share/drbl/lang/bash/"
 
 
 #We leave an option to pause now in order to let the user edit the master before we continue.
 if [ -n "$pauseFlag" ]; then
-    echo "All files have been copied to the new image."
-    echo "Rebuild paused, make modifications at $tmpDir"
-    rsp=""
-    while [ "$rsp" -eq "yes" ]; do
-        read -p "Please tyle \"yes\" when you are ready to continue." rsp
-        rsp=$(echo "$rsp" | tr '[:upper:]' '[:lower:]')
-    done
+    _rc=$(messagePrompt -o "yes" -p "Do you want to continue?" "All files have been copied to the new image." "Rebuild paused, make modifications at $tmpDir")
 fi
 
 #We now rebuild the root filesystem and replace our old one in the template.
 echo ""
-echo "Rebuilding squashfs" | tee -a $logFile
+messagePrompt "Rebuilding squashfs"
 mksquashfs $tmpDir/root-squashfs $tmpDir/filesystem.squashfs -noappend -always-use-fragments > >(tee -a $logFile) 2> >(tee -a $logFile >&2)
 [ ! -e "$tmpDir/filesystem.squashfs" ] && FAILURE_EXIT -l "Failed to rebuild squashfs."
-echo "Successfully rebuilt squasfs." | tee -a $logFile
+messagePrompt -s "Successfully rebuilt squasfs."
 
 echo ""
-echo "Swapping out old squashfs with new" | tee -a $logFile
+messagePrompt "Swapping out old squashfs with new"
 mv -f $tmpDir/filesystem.squashfs $tmpDir/zip/live/filesystem.squashfs
 [ $? -gt 0 ] && FAILURE_EXIT -l "Failed to update image with new squashfs."
-echo "Successfully updated image with new squashfs."
+messagePrompt -s "Successfully updated image with new squashfs."
 
 echo ""
 
@@ -538,11 +658,11 @@ echo ""
 
 #We are done, now its time to clean up the temporary files and ensure that any logs and files are accessable by the
 #User who called this program from sudo.
-echo "Rebuild complete! Updated $filesCopied files."
+messagePrompt -s "Rebuild complete! Updated $filesCopied files."
 if [ -z "$printLog" ]; then
     rm -f $logFile
 else
-    echo "Please see logfile at $logFile for more details."
+    messagePrompt -w "Please see logfile at $logFile for more details."
     chown ${SUDO_USER:-${USER}}:${SUDO_USER:-${USER}} $logFile #Change ownership from root to user who called script.
 fi
-[ -d "$tmpDir" ] && rm -r -f $tmpDir && echo "removed $tmpDir"
+[ -d "$tmpDir" ] && rm -r -f $tmpDir && messagePrompt "removed $tmpDir"
