@@ -1,9 +1,9 @@
-Summary:	Opensource Clone System (ocs), clonezilla
-Name:		clonezilla
-Version:	3.38.15
+Summary:	Opensource Clone System (ocs), clonewar
+Name:		clonewar
+Version:	1.0.0-amd64
 Release:	drbl1
 License:	GPL
-Group:		Development/Clonezilla
+Group:		GDMS CAN Acoustics
 Source0:	%{name}-%{version}.tar.xz
 URL:		http://clonezilla.org
 BuildArch:	noarch
@@ -37,6 +37,22 @@ make install DESTDIR=$RPM_BUILD_ROOT/
 /etc/drbl/*
 
 %changelog
+* Thu Jul 16 2020 Jayson Mendoza <jayson.mendoza _at_ gd-ms.ca> 1.0.0-amd64
+  *Major program modifications to GDMS standards for internal tool
+  *Removed all external repository downloading
+  *Disabled clonezilla from scratch creation tools
+  *Rebranded to GDMS
+  *Reduced language support to french and English
+  *Added new scripts
+    *makeusb-clonewar.sh Is used to create one or more bootable usb disks from a clonezilla/clonewar created iso or zip. It can do this unattended and will reformat as necessary. Does basic saftey checks to ensure it is removable usb.
+    *rebuild-clonezilla.sh Is used to convert a clonezilla image iso or zip to a version of clonewar. It supports 2.6.6-15 by design, and could be used on higher versions though this is not gaurnteed to work.
+    *list-remove-scripts.txt Is used by rebuild-clonezilla.sh to remove scripts from the rebuilt image.
+    *Dependencies folder created to contain external dependencies for Clonezilla
+      *Moved grub2 dependencies from squishfs into dependencies/grub2
+      *Moved drbl dependencies from drbl repository into dependencies/drbl_src
+      *Moved syslinux dependencies from zip root folder into dependencies/syslinux but replaced all *.c32 files with new ones from ubuntu 18.04 to fix an incompatability bug in 2.6.6-15
+      *Moved utils folder from zip root folder into dependencies/utils
+      *Copied isohdpfx.bin into dependencies/xorriso
 * Fri May 08 2020 Steven Shiau <steven _at_ clonezilla org> 3.38.15-drbl1
   * Update ocs-live-repository so that ram_disk is one of the option.
     It can be done by using ram://.

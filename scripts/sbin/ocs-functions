@@ -1,6 +1,13 @@
 #!/bin/bash
 # Authors: Steven Shiau <steven _at_ nchc org tw>, Ceasar Sun <ceasar _at_ nchc org tw>
 # License: GPL
+# 2020/07/15 GDMS by Jayson Mendoza
+#>>Removed functions: 
+#>>>>download_clonezilla_live()
+#>>>>get_latest_kernel_ver_in_repository()
+#>> wget is a security risk in the context of the aformentioned functions. 
+#>>These function should be un-necessary since program segments which create a new clonezilla live have been removed or disabled,
+# and the ISO/ZIP creation is now local data only.
 
 ###
 ### functions for drbl-ocs, ocs-sr and ocs-onthefly
