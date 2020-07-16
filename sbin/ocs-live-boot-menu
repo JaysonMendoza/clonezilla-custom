@@ -2,7 +2,9 @@
 # Author: Steven Shiau <steven _at_ nchc org tw>
 # License: GPL
 # Description: This program will put a syslinux.cfg or isolinux.cfg in target directory, which is used to boot clonezilla live.
-
+# 2020/07/15 GDMS by Jayson Mendoza
+#>>Modified to re-brand for GDMS Clonewar
+#>>Disabled any menu options for IPXE support which was removed.
 #
 DRBL_SCRIPT_PATH="${DRBL_SCRIPT_PATH:-/usr/share/drbl}"
 

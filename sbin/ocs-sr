@@ -17,6 +17,11 @@
 # 2005/11/06 Many thanks to Christian Treczoks for providing "dd skip=1" method
 # 2006/05/06 Remove save & restore hda1, since we can use save & restore partitions.
 # 2006/12/07 Rewrite drbl-ocs to drbl-ocs + ocs-sr + ocs-functions.
+# 2020/07/15 GDMS by Jayson Mendoza
+#>>Modified function create_clonezilla_live_recovery_iso_zip
+#>>>>Inputbox default answer to question for target drive ws changed from the drive where the image was captured, to ask_user in order to force the auto restore images to ask for a target drive during restoration workflow.
+#>>>>Modified script calls to ocs-iso and ocs-live-dev to include option -n "d" in order to request a dark mode boot menu type for MBR boots page. This will complement the new GDMS brand PNG used in ask the background.
+#>>>>Updated log and echo version to include new option
 
 # input parameters:
 # save/savedisk/saveparts/restore/restoredisk/restoreparts/multicast_restore/multicast_restoredisk IMAGE-NAME DEVICES

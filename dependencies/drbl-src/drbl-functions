@@ -5,7 +5,14 @@
 # License: GPL
 #
 # Functions:	This file contains functions to be used by most or all	shell scripts in the DRBL environment
-#
+# 2020/07/15 GDMS by Jayson Mendoza
+#>>Removed functions:
+#>>>>get_syslinux_binary_for_dos_linux - uses wget to remote repository
+#>>>>get_latest_pkg_in_drbl_repository - uses wget to remote repositiry
+#>>The aformentioned function shave been made un-necessary since the make clonezilla/drbl/etc features where disabled and ISO's only grab from current image.
+#>>Changed Functions:
+#>>>>set_ocs_sr_extra_param - Changed default settings to match GDMS guidance.
+
 # //NOTE// Do NOT set the locale by "export LC_ALL=C". It will make dialog distortation.
 
 # Source DRBL setting
