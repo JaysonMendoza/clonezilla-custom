@@ -17,7 +17,7 @@
 ######################################################################################
 ##                                  Variables                                       ##
 ######################################################################################
-declare DEFAULT_SRC="$(realpath ~/Dev/clonezilla-custom)"
+declare DEFAULT_SRC="$(readlink -f $0 | xargs dirname)"
 declare compatableClonezillaVersion="Clonezilla Live 2.6.6-15"
 declare targetFile="" #The location of the zip file that is being modified and copied.
 declare id="" #This is the id of the temp file. It is set once created and used as a tag for the log file and sometimes filename if it already exists.
